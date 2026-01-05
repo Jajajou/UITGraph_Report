@@ -1,9 +1,7 @@
 \chapter{Bài toán}
 \label{chap:baitoan}
 
-Trong môi trường đại học, thông tin học vụ và hành chính thường tồn tại dưới dạng nhiều văn bản quy định, thông báo và hướng dẫn, được công bố phân tán trên nhiều kênh (website, cổng thông tin, tài liệu PDF/HTML, thông báo nội bộ). Đặc điểm quan trọng của nhóm tài liệu này là tính thay đổi theo thời gian: văn bản có thể có ngày hiệu lực/hết hiệu lực, có thể được sửa đổi hoặc bổ sung bởi văn bản khác, và có thể chỉ áp dụng cho một nhóm đối tượng nhất định (ví dụ theo khóa sinh viên).
-
-Bài toán đặt ra là xây dựng một hệ thống hỏi--đáp dựa trên tài liệu UIT có khả năng:
+Trong môi trường đại học, thông tin học vụ và hành chính thường tồn tại dưới dạng nhiều văn bản được công bố phân tán trên nhiều kênh thông tin. Đặc điểm quan trọng của nhóm tài liệu này là tính thay đổi theo thời gian: văn bản có thể có ngày hiệu lực/hết hiệu lực, có thể được sửa đổi hoặc bổ sung bởi văn bản khác, và có thể chỉ áp dụng cho một nhóm đối tượng nhất định (ví dụ theo khóa sinh viên). Bài toán đặt ra là xây dựng một hệ thống hỏi--đáp dựa trên tài liệu UIT có khả năng:
 \begin{enumerate}
     \item[(i)] Truy xuất đúng nguồn,
     \item[(ii)] Tổng hợp câu trả lời có căn cứ (kèm trích dẫn),
@@ -51,21 +49,16 @@ Bài toán được mô hình hóa thành hai pha xử lý: pha lập chỉ mụ
 \subsection{Pha lập chỉ mục (offline)}
 \label{subsec:phaoffline}
 
-Mục tiêu của pha offline là ánh xạ tập tài liệu thô $D$ thành cơ sở tri thức phục vụ truy xuất gồm: đồ thị tri thức, kho vector và kho metadata thời gian.
+Mục tiêu của pha offline là ánh xạ tập tài liệu thô $D$ thành cơ sở tri thức phục vụ truy xuất gồm: đồ thị tri thức, kho vector và kho metadata thời gian. Pha này cần đáp ứng các yêu cầu sau:
 
 \begin{itemize}
-    \item \textbf{Xử lý nội dung:} Thu thập tài liệu từ web và/hoặc PDF; với PDF, trích xuất văn bản và bố cục để tạo nội dung dạng markdown.
-    
-    \item \textbf{Trích xuất metadata thời gian} theo tiếp cận đa chiến lược:
-    \begin{itemize}
-        \item Regex tiếng Việt
-        \item Trích xuất bằng mô hình ngôn ngữ khi độ tin cậy thấp
-        \item Suy luận bổ sung từ tên file khi thiếu trường.
-    \end{itemize}
-    
-    \item \textbf{Liên kết quan hệ sửa đổi:} Thiết lập quan hệ giữa các văn bản khi tài liệu $d_i$ sửa đổi/bổ sung văn bản khác (\texttt{amends\_documents}), và ngược lại (\texttt{amended\_by}).
-    
-    \item \textbf{Gắn metadata} theo \texttt{track\_id} trong quá trình upload để cập nhật metadata trực tiếp, tránh cơ chế polling.
+    \item \textbf{Xử lý nội dung đa dạng:} Hệ thống cần xử lý được nhiều nguồn dữ liệu khác nhau (web, PDF, HTML) và chuẩn hóa về định dạng thống nhất để phục vụ phân đoạn và trích xuất tri thức. Với tài liệu PDF phức tạp (chứa bảng biểu, tiêu đề phân cấp), cần bảo toàn cấu trúc layout để giữ nguyên ngữ cảnh phân cấp.
+
+    \item \textbf{Trích xuất metadata thời gian với độ tin cậy cao:} Hệ thống cần tự động trích xuất các trường metadata quan trọng (\texttt{valid\_from}, \texttt{valid\_until}, \texttt{document\_number}, \texttt{student\_cohorts}) với độ chính xác cao ($\geq 90\%$). Cơ chế trích xuất phải có khả năng xử lý các quan hệ thời gian ẩn (ví dụ: ``có hiệu lực sau 45 ngày kể từ ngày ký'') mà các phương pháp khớp mẫu đơn giản không thể xử lý.
+
+    \item \textbf{Liên kết quan hệ sửa đổi:} Hệ thống cần tự động nhận diện và thiết lập quan hệ giữa các văn bản khi tài liệu $d_i$ sửa đổi/bổ sung văn bản khác (\texttt{amends\_documents}), và ngược lại (\texttt{amended\_by}), để hỗ trợ truy vết lịch sử thay đổi quy định.
+
+    \item \textbf{Xây dựng cấu trúc tri thức đa chiều:} Tích hợp ba lớp lưu trữ bổ trợ nhau: đồ thị tri thức (hỗ trợ suy luận quan hệ), vector embeddings (tìm kiếm ngữ nghĩa), và cơ sở dữ liệu quan hệ (quản lý metadata thời gian với khả năng lọc chính xác).
 \end{itemize}
 
 \subsection{Pha truy vấn (online)}
@@ -141,37 +134,17 @@ Hàm \texttt{calculate\_temporal\_score} được mô tả theo các trường h
 
 Cuối cùng, hệ thống sắp xếp các ứng viên theo $final\_score$ giảm dần và chọn các tài liệu có điểm cao nhất làm tập bằng chứng trả về.
 
-\section{Kiến trúc Metadata RAG Subgraph}
-\label{sec:metadatarag}
+\section{Hướng tiếp cận đề xuất}
+\label{sec:huongtiepcan}
 
-Thay vì sử dụng các phương pháp trích xuất thông tin truyền thống (như Regex cứng nhắc hay LLM Prompting đơn lẻ) vốn dễ gặp lỗi ảo giác với các văn bản pháp quy phức tạp, đề tài đề xuất kiến trúc \textbf{Metadata RAG Subgraph}.
-
-Đây là một quy trình RAG thu nhỏ (mini-RAG workflow) chuyên biệt, coi việc xác định siêu dữ liệu thời gian là một bài toán Hỏi-Đáp (Question Answering) ngược vào chính tài liệu đó.
-
-\subsection{Quy trình xử lý}
-\label{subsec:quytrinhxuly}
-
-Dựa trên kiến trúc hệ thống, quy trình trích xuất metadata được vận hành tự động như sau:
+Để giải quyết bài toán đã mô hình hóa ở trên, đề tài đề xuất hệ thống \textbf{UITGraph: Temporal-Aware Graph-RAG} với ba trụ cột kỹ thuật chính:
 
 \begin{enumerate}
-    \item \textbf{Phân mảnh ngữ cảnh lớn (Chunking):} Tài liệu được chia thành các đoạn lớn để giữ trọn vẹn ngữ cảnh các điều khoản quy định.
-    
-    \item \textbf{Lập chỉ mục tạm thời (In-Memory Indexing):} Hệ thống khởi tạo một vector store tạm thời chỉ tồn tại trong quá trình xử lý tài liệu đó.
-    
-    \item \textbf{Truy vấn Metadata (RAG):} Hệ thống thực hiện truy xuất hai giai đoạn (Two-Stage Retrieval):
-    \begin{itemize}
-        \item \textit{Giai đoạn 1:} Sử dụng Bi-Encoder để quét nhanh 50 đoạn văn bản liên quan đến ``ngày hiệu lực'', ``phạm vi áp dụng''.
-        \item \textit{Giai đoạn 2:} Sử dụng Cross-Encoder (ViRanker) để xếp hạng lại và chọn ra 5 đoạn chính xác nhất.
-    \end{itemize}
-    
-    \item \textbf{Tính điểm tin cậy (Confidence Scoring):} Kết quả trích xuất được chấm điểm dựa trên công thức trọng số: 40\% độ đầy đủ + 40\% điểm tin cậy LLM + 20\% chất lượng đoạn văn.
-    
-    \item \textbf{Kiểm tra và Định dạng:} Dữ liệu được đưa qua một bộ lọc để chuẩn hóa định dạng ngày tháng (YYYY-MM-DD) và chuẩn hóa số hiệu văn bản.
-    
-    \item \textbf{Dọn dẹp (Cleanup):} Xóa vector store tạm thời để giải phóng tài nguyên.
+    \item \textbf{Graph-enhanced Retrieval (LightRAG):} Sử dụng kiến trúc truy xuất kép (dual-level retrieval) kết hợp entity-level và community-level để hỗ trợ cả truy vấn cụ thể (specific queries) lẫn truy vấn toàn cục (global queries), đồng thời giảm chi phí so với GraphRAG truyền thống.
+
+    \item \textbf{Metadata RAG Subgraph:} Đề xuất cơ chế trích xuất metadata thời gian dựa trên RAG chuyên biệt (specialized mini-RAG), coi việc xác định siêu dữ liệu thời gian là một bài toán Question Answering ngược vào chính tài liệu đó. Cách tiếp cận này vượt trội hơn Regex hoặc LLM Prompting đơn thuần trong việc xử lý các quan hệ thời gian phức tạp.
+
+    \item \textbf{Multi-Agent Orchestration (LangGraph):} Áp dụng kiến trúc đa tác tử có trạng thái với ba agent chuyên biệt (Query Understanding, Quality Assessment, Response Generation), cho phép định tuyến linh hoạt và cơ chế fallback để đảm bảo tính an toàn của câu trả lời.
 \end{enumerate}
 
-\subsection{Hiệu quả}
-\label{subsec:hieuqua}
-
-Thực nghiệm cho thấy kiến trúc Metadata RAG Subgraph đạt độ tin cậy trung bình 0.92, cải thiện 83\% so với phương pháp Regex truyền thống (chỉ đạt 0.5-0.6). Cơ chế này cho phép hệ thống ``hiểu'' được các quan hệ thời gian ẩn (như ``văn bản này có hiệu lực sau 45 ngày kể từ ngày ký'') mà các phương pháp khớp mẫu thông thường không thể xử lý được.
+Chi tiết kỹ thuật về kiến trúc hệ thống, quy trình lập chỉ mục, thuật toán xếp hạng và triển khai được trình bày đầy đủ tại Chương \ref{chap:phuongphap}.
