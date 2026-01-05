@@ -143,26 +143,24 @@ Sử dụng Vietnamese\_Embedding\_v2 để quét nhanh top-50 đoạn văn bả
 \textit{Giai đoạn 2 (Cross-Encoder):}
 Sử dụng ViRanker \cite{dang2025viranker} (namdp-ptit/ViRanker) để xếp hạng lại. Chọn ra top-5 đoạn chính xác nhất dựa trên semantic similarity score.
 
-\textbf{Bước 4 - Tính điểm tin cậy (Confidence Scoring):}
+\textbf{Bước 4 - Tính toán độ tin cậy trích xuất (Confidence Scoring):}
+
+Sau khi LLM thực hiện trích xuất thông tin từ các chunk ngữ cảnh được retrieve, hệ thống tính toán điểm tin cậy tổng hợp $C_{total}$ dựa trên công thức trọng số:
 
 \begin{equation}
-confidence = 0.4 \times completeness\_score + 0.4 \times llm\_confidence + 0.2 \times chunk\_quality
+C_{total} = 0.4 \times S_{completeness} + 0.4 \times S_{LLM} + 0.2 \times S_{quality}
 \end{equation}
 
 Trong đó:
 \begin{itemize}
-    \item $completeness\_score$: Số trường metadata được trích xuất thành công / Tổng số trường
-    \item $llm\_confidence$: Điểm tin cậy từ LLM extraction
-    \item $chunk\_quality$: Điểm relevance trung bình từ Cross-Encoder
+    \item $S_{completeness}$: Tỷ lệ trường bắt buộc được trích xuất thành công. Hệ thống yêu cầu 3 trường cốt lõi: \texttt{document\_number}, \texttt{valid\_from}, và \texttt{cohort\_years}. Điểm này tính bằng số trường có giá trị hợp lệ chia cho tổng số trường bắt buộc (3).
+
+    \item $S_{LLM}$: Tỷ lệ trường không rỗng (non-NULL ratio), phản ánh mức độ LLM có thể trích xuất được giá trị từ ngữ cảnh. Tính bằng $1.0 - \frac{\text{số trường NULL}}{\text{tổng số trường}}$, trong đó hệ thống kiểm tra 5 trường: \texttt{document\_number}, \texttt{valid\_from}, \texttt{valid\_until}, \texttt{cohort\_years}, \texttt{amends\_documents}. Điểm cao cho thấy LLM không trả về giá trị ``NULL'' hoặc rỗng.
+
+    \item $S_{quality}$: Tỷ lệ loại chunk được tìm thấy cho các truy vấn metadata (coverage ratio). Hệ thống thực hiện 4 truy vấn độc lập (cho \texttt{document\_number}, \texttt{valid\_from}, \texttt{cohort\_years}, \texttt{amends\_documents}) và tính tỷ lệ truy vấn có ít nhất một chunk được retrieve thành công từ vector store tạm thời.
 \end{itemize}
 
-Phân loại confidence:
-\begin{itemize}
-    \item 0.9-1.0 (Excellent): Sử dụng trực tiếp kết quả RAG (hệ thống đạt 0.92)
-    \item 0.7-0.9 (Good): Sử dụng với cảnh báo
-    \item 0.5-0.7 (Fair): Kết hợp với Regex validation
-    \item $< 0.5$ (Low): Fallback hoàn toàn sang Regex
-\end{itemize}
+Nếu quá trình trích xuất hoàn tất thành công, metadata được lưu trực tiếp vào PostgreSQL. Trong trường hợp gặp lỗi hoặc thất bại, hệ thống tự động kích hoạt cơ chế dự phòng (fallback) sử dụng Regex để trích xuất các trường cơ bản từ văn bản. Thực nghiệm cho thấy phương pháp RAG-based đạt điểm tin cậy trung bình \textbf{0.92} trên tập tài liệu kiểm tra, cải thiện đáng kể so với phương pháp Regex thuần túy (0.5-0.6).
 
 \textbf{Bước 5 - Kiểm tra và Định dạng (Pydantic Validation):}
 \begin{itemize}
