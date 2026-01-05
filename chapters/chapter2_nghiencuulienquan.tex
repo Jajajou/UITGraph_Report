@@ -34,7 +34,7 @@ Thách thức lớn nhất ngăn cản LightRAG ứng dụng vào bối cảnh n
 \subsection{HippoRAG}
 \label{subsec:hipporag}
 
-HippoRAG \cite{xu2024hipporag} mô phỏng cơ chế bộ nhớ dài hạn và dùng Personalized PageRank (PPR) để xếp hạng tri thức theo cấu trúc liên kết, từ đó tăng khả năng kết nối ngữ cảnh và gợi ý multi-hop. Dù vậy, rào cản chính của HippoRAG nằm ở độ phức tạp khi triển khai thực tế, đồng thời thiếu vắng cơ chế chỉ ra rõ cách ràng buộc hiệu lực/phiên bản để tránh trả lời dựa trên văn bản đã hết hiệu lực hoặc đã bị sửa đổi.
+HippoRAG \cite{jimenez2024hipporag} mô phỏng cơ chế bộ nhớ dài hạn và dùng Personalized PageRank (PPR) để xếp hạng tri thức theo cấu trúc liên kết, từ đó tăng khả năng kết nối ngữ cảnh và gợi ý multi-hop. Dù vậy, rào cản chính của HippoRAG nằm ở độ phức tạp khi triển khai thực tế, đồng thời thiếu vắng cơ chế chỉ ra rõ cách ràng buộc hiệu lực/phiên bản để tránh trả lời dựa trên văn bản đã hết hiệu lực hoặc đã bị sửa đổi.
 
 \section{Agentic Workflow Orchestration với LangGraph}
 \label{sec:langgraph}
@@ -55,12 +55,12 @@ Song, bản thân orchestration chỉ giải quyết bài toán quy trình mà b
 \subsection{T-GRAG}
 \label{subsec:tgrag}
 
-T-GRAG \cite{tgrag2025} xử lý tri thức biến đổi theo thời gian bằng đồ thị tri thức có đánh dấu thời gian (time-stamped knowledge graph) và cơ chế phân rã truy vấn theo thời gian (temporal query decomposition), sau đó truy xuất theo nhiều lớp để trả lời câu hỏi nhạy thời gian. Dù đã tiếp cận khía cạnh thời gian, T-GRAG vẫn chưa thể giải quyết trọn vẹn bài toán, mô hình hóa ``tiến hóa tri thức'' chưa tương đương với quản lý ``khoảng hiệu lực'' (\texttt{valid\_from}/\texttt{valid\_until}) và ``quan hệ sửa đổi/bổ sung'' vốn phổ biến trong văn bản quy định.
+T-GRAG \cite{li2025tgrag} xử lý tri thức biến đổi theo thời gian bằng đồ thị tri thức có đánh dấu thời gian (time-stamped knowledge graph) và cơ chế phân rã truy vấn theo thời gian (temporal query decomposition), sau đó truy xuất theo nhiều lớp để trả lời câu hỏi nhạy thời gian. Dù đã tiếp cận khía cạnh thời gian, T-GRAG vẫn chưa thể giải quyết trọn vẹn bài toán, mô hình hóa ``tiến hóa tri thức'' chưa tương đương với quản lý ``khoảng hiệu lực'' (\texttt{valid\_from}/\texttt{valid\_until}) và ``quan hệ sửa đổi/bổ sung'' vốn phổ biến trong văn bản quy định.
 
 \subsection{VersionRAG}
 \label{subsec:versionrag}
 
-VersionRAG \cite{versionrag2025} tập trung vào tài liệu có chuỗi phiên bản rõ ràng (v1$\rightarrow$v2$\rightarrow$v3), xây dựng version graph phân cấp và phát hiện thay đổi ngầm định để định tuyến truy xuất theo phiên bản phù hợp. Điểm hạn chế của hướng tiếp cận này là sự phụ thuộc cứng nhắc vào chuỗi phiên bản (version chain), trong khi dữ liệu quy định thực tế đòi hỏi mô hình hóa trực tiếp hiệu lực và quan hệ amendment thay vì chỉ dựa vào chuỗi version.
+VersionRAG \cite{huwiler2025versionrag} tập trung vào tài liệu có chuỗi phiên bản rõ ràng (v1$\rightarrow$v2$\rightarrow$v3), xây dựng version graph phân cấp và phát hiện thay đổi ngầm định để định tuyến truy xuất theo phiên bản phù hợp. Điểm hạn chế của hướng tiếp cận này là sự phụ thuộc cứng nhắc vào chuỗi phiên bản (version chain), trong khi dữ liệu quy định thực tế đòi hỏi mô hình hóa trực tiếp hiệu lực và quan hệ amendment thay vì chỉ dựa vào chuỗi version.
 
 \section{Các hệ thống RAG trong miền dữ liệu giáo dục đại học tại Việt Nam}
 \label{sec:ragvn}
@@ -77,12 +77,12 @@ Tuy nhiên, điểm hạn chế chung của các hệ thống hiện có là vi�
 \subsection{URAG -- Đại học Bách Khoa TP.HCM}
 \label{subsec:urag}
 
-URAG \cite{nguyen2025urag} triển khai theo hướng RAG cơ bản dựa trên tìm kiếm vector để hỗ trợ tư vấn thông tin. Do giới hạn về công nghệ nền tảng, các hệ thống trên chưa thể biểu diễn quan hệ và thiếu quản lý hiệu lực; do đó khó hỗ trợ truy vấn toàn cục/multi-hop và khó đảm bảo trả lời đúng khi quy định thay đổi.
+URAG \cite{nguyen2025urag} triển khai hệ thống hybrid RAG kết hợp rule-based FAQs với retrieval-based generation để hỗ trợ tư vấn tuyển sinh tại ĐHBK TP.HCM. Hệ thống ưu tiên trả lời từ cơ sở FAQ cho các câu hỏi phổ biến/nhạy cảm, sau đó mới chuyển sang truy xuất tài liệu và sinh câu trả lời qua LLM. Tuy nhiên, URAG chưa tích hợp đồ thị tri thức và thiếu cơ chế quản lý hiệu lực theo thời gian; do đó khó hỗ trợ truy vấn multi-hop và khó đảm bảo trả lời đúng khi quy định thay đổi.
 
 \subsection{REBot -- Đại học Cần Thơ}
 \label{subsec:rebot}
 
-REBot \cite{ma2025rebot} kết hợp rule-based và retrieval để tư vấn thông tin chung. Nhược điểm chung của nhóm giải pháp này là phạm vi bao phủ và cơ chế cập nhật/hiệu lực chưa rõ ràng, nên độ tin cậy giảm mạnh đối với câu hỏi phụ thuộc thời điểm hoặc văn bản bị sửa đổi.
+REBot \cite{ma2025rebot} áp dụng framework CatRAG (Category-aware RAG) kết hợp dense retrieval với graph reasoning thông qua đồ thị tri thức phân cấp theo danh mục, được làm giàu bằng đặc trưng ngữ nghĩa (semantic features). Hệ thống sử dụng intent classifier nhẹ để định tuyến truy vấn đến module truy xuất phù hợp và đạt F1-score 98.89\% trên tập dữ liệu của Đại học Cần Thơ. Tuy nhiên, REBot chưa giải quyết trực tiếp bài toán quản lý hiệu lực theo thời gian và quan hệ sửa đổi văn bản, nên độ tin cậy có thể giảm khi quy định thay đổi.
 
 $\Rightarrow$ Sự phụ thuộc thuần túy vào tìm kiếm vector khiến các hệ thống này dễ gặp lỗi ảo giác khi đối mặt với các văn bản sửa đổi có nội dung ngữ nghĩa tương đồng cao nhưng mang hiệu lực pháp lý đối lập.
 
@@ -101,6 +101,7 @@ $\Rightarrow$ Sự phụ thuộc thuần túy vào tìm kiếm vector khiến c�
 \centering
 \caption{So sánh các hướng tiếp cận RAG hiện nay}
 \label{tab:sosanhrag}
+\resizebox{\textwidth}{!}{%
 \begin{tabular}{|l|c|c|c|c|}
 \hline
 \textbf{Feature} & \textbf{NaiveRAG} & \textbf{GraphRAG} & \textbf{T-GRAG} & \textbf{UITGraph} \\
@@ -119,7 +120,8 @@ Cơ chế Metadata & Không xác định & Trích xuất & Regex/ & RAG-based \\
 \hline
 Chi phí vận hành & Thấp & Rất cao & Trung Bình & Tối ưu \\
 \hline
-\end{tabular}
+\end{tabular}%
+}
 \end{table}
 
 $\Rightarrow$ Trong khi GraphRAG mạnh về suy luận nhưng chi phí quá cao, và các giải pháp Naive RAG thiếu độ chính xác về ngữ cảnh, UITGraph lựa chọn cách tiếp cận cân bằng: sử dụng LightRAG \cite{guo2024lightrag} cho suy luận cấu trúc và tích hợp module chuyên biệt Metadata RAG để xử lý bài toán thời gian với chi phí thấp.

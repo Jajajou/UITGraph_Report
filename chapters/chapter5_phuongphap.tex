@@ -16,7 +16,7 @@ Toàn bộ quy trình được điều phối bởi LangGraph dưới dạng m�
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.95\textwidth]{images/img/system_architecture.png}
+    \includegraphics[width=0.75\textwidth,keepaspectratio]{images/img/system_architecture.png}
     \caption{Tổng quan kiến trúc hệ thống UITRaph và các lớp xử lý}
     \label{fig:tongquankientruc}
 \end{figure}
@@ -49,13 +49,13 @@ Mục tiêu của pha này là chuyển đổi tài liệu thô thành ba cấu 
 
 \begin{enumerate}
     \item \textbf{Vector Embeddings (Qdrant) \cite{qdrant}:} Phục vụ tìm kiếm tương đồng ngữ nghĩa.
-    \item \textbf{Knowledge Graph (Neo4j/NetworkX):} Phục vụ suy luận đa bước và truy vấn cấu trúc.
+    \item \textbf{Knowledge Graph (NetworkX):} Phục vụ suy luận đa bước và truy vấn cấu trúc.
     \item \textbf{Relational Metadata (PostgreSQL) \cite{postgresql}:} Đóng vai trò ``Source of Truth'' để kiểm soát tính hiệu lực và vòng đời tài liệu.
 \end{enumerate}
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.95\textwidth]{images/img/indexing_flow.png}
+    \includegraphics[width=0.75\textwidth,keepaspectratio]{images/img/indexing_flow.png}
     \caption{Trình tự xử lý trong luồng lập chỉ mục (Indexing Flow)}
     \label{fig:indexingflow}
 \end{figure}
@@ -88,14 +88,14 @@ Tại bước xử lý trung tâm, tài liệu sau khi phân đoạn (chunking) 
 Hệ thống áp dụng mô hình \textbf{Hybrid Storage} để tối ưu hóa việc lưu trữ:
 
 \begin{itemize}
-    \item \textbf{Neo4j/NetworkX:} Lưu trữ đồ thị tri thức, biểu diễn các quan hệ cấu trúc như prerequisites (tiên quyết), belongs\_to (thuộc về).
+    \item \textbf{NetworkX:} Lưu trữ đồ thị tri thức, biểu diễn các quan hệ cấu trúc như prerequisites (tiên quyết), belongs\_to (thuộc về).
     \item \textbf{Qdrant:} Lưu trữ vector embeddings cho các đoạn văn bản và thực thể.
     \item \textbf{PostgreSQL:} Lưu trữ metadata thời gian chuẩn hóa, đảm bảo khả năng lọc chính xác (Exact Filtering) mà các cơ sở dữ liệu vector thường gặp hạn chế.
 \end{itemize}
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.95\textwidth]{images/img/lightrag_architecture.png}
+    \includegraphics[width=0.75\textwidth,keepaspectratio]{images/img/lightrag_architecture.png}
     \caption{Quy trình xây dựng đồ thị tri thức và các kho lưu trữ phục vụ truy xuất}
     \label{fig:kgconstruction}
 \end{figure}
@@ -120,7 +120,7 @@ Thay vì sử dụng các phương pháp trích xuất truyền thống (Regex c
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.95\textwidth]{images/img/metadata_rag_subgraph.png}
+    \includegraphics[width=0.45\textwidth,keepaspectratio]{images/img/metadata_rag_subgraph.png}
     \caption{Kiến trúc Metadata RAG}
     \label{fig:metadatarag}
 \end{figure}
@@ -181,7 +181,7 @@ Phân loại confidence:
 
 \begin{table}[H]
 \centering
-\caption{So sánh hiệu quả các phương pháp trích xuất metadata}
+\caption{So sánh hiệu quả thực nghiệm các phương pháp trích xuất metadata}
 \label{tab:metadatacomparison}
 \begin{tabular}{|l|c|c|c|c|}
 \hline
@@ -206,7 +206,7 @@ LLM Prompting đơn lẻ & 0.6-0.7 & 1.5s & 60-70\% & Cao \\
 \subsection{Cơ chế đồng bộ dữ liệu và định danh (Data Synchronization)}
 \label{subsec:datasync}
 
-Trong kiến trúc tích hợp với LightRAG, quá trình nạp và xử lý tài liệu diễn ra theo cơ chế bất đồng bộ (asynchronous processing). Khi nội dung được gửi đi, hệ thống chỉ nhận lại ngay lập tức một mã theo dõi (\texttt{track\_id}) thay vì định danh tài liệu (\texttt{doc\_id}) chính thức.
+Trong kiến trúc tích hợp với LightRAG \cite{guo2024lightrag}, quá trình nạp và xử lý tài liệu diễn ra theo cơ chế bất đồng bộ (asynchronous processing). Khi nội dung được gửi đi, hệ thống chỉ nhận lại ngay lập tức một mã theo dõi (\texttt{track\_id}) thay vì định danh tài liệu (\texttt{doc\_id}) chính thức.
 
 Để giải quyết vấn đề độ trễ đồng bộ (sync latency) thường gặp ở cơ chế kiểm tra lặp, hệ thống áp dụng quy trình tra cứu ngược. Quy trình thực hiện như sau:
 
@@ -236,7 +236,7 @@ Quy trình này không chạy tuyến tính mà bao gồm các checkpoints để
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.95\textwidth]{images/img/query_pipeline.png}
+    \includegraphics[width=0.55\textwidth,height=0.55\textheight,keepaspectratio]{images/img/query_pipeline.png}
     \caption{Kiến trúc ba tác tử trong pha truy vấn của UITGraph}
     \label{fig:multiagent}
 \end{figure}
@@ -363,7 +363,7 @@ Hệ thống UITGraph được đóng gói và triển khai theo kiến trúc vi
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.95\textwidth]{images/img/deployment_architecture.png}
+    \includegraphics[width=0.75\textwidth,keepaspectratio]{images/img/deployment_architecture.png}
     \caption{Kiến trúc triển khai hệ thống theo Docker Compose}
     \label{fig:dockercompose}
 \end{figure}
@@ -428,23 +428,61 @@ Crawler & Firecrawl & 3002:3002 & Web Crawler Service \\
     \item \texttt{./data/DeepSeek-OCR}: Lưu trữ mô hình OCR và cache kết quả xử lý hình ảnh.
 \end{itemize}
 
-\subsection{Embedding Model và Reranker}
-\label{subsec:embeddingmodel}
+\subsection{Lựa chọn Model (Model Choice)}
+\label{subsec:modelchoice}
 
-\textbf{Embedding Model:}
+Hệ thống UITGraph sử dụng bộ model đa tầng được lựa chọn cẩn trọng để cân bằng giữa hiệu năng, chi phí và độ chính xác cho miền dữ liệu học vụ tiếng Việt.
+
+\subsubsection{Large Language Model (LLM)}
 \begin{itemize}
-    \item Model: AlTeamVN/Vietnamese\_Embedding\_v2
-    \item Dimension: 1024-dim
-    \item Tối ưu: Embedding vector được tinh chỉnh đặc biệt cho văn bản tiếng Việt chuyên ngành
-    \item Use case: Sử dụng cho cả indexing (Metadata RAG) và query retrieval
+    \item \textbf{Model:} Qwen3-4B-Instruct \cite{yang2025qwen3}
+    \item \textbf{Lý do lựa chọn:}
+    \begin{itemize}
+        \item \textit{Lightweight và hiệu quả:} Với chỉ 4B parameters, Qwen3-4B đạt hiệu năng ấn tượng trên các tác vụ instruction-following và information extraction, trong khi vẫn đảm bảo tốc độ inference nhanh và yêu cầu tài nguyên thấp.
+        \item \textit{Hỗ trợ tiếng Việt:} Model được pre-train trên corpus đa ngôn ngữ chất lượng cao bao gồm tiếng Việt, giúp hiểu ngữ cảnh văn bản hành chính và pháp quy tốt hơn các mô hình chỉ tập trung tiếng Anh.
+        \item \textit{Chi phí triển khai thấp:} Kích thước nhỏ gọn cho phép deploy dễ dàng trên hardware phổ thông hoặc cloud với chi phí thấp, phù hợp với môi trường giáo dục có ngân sách hạn chế.
+        \item \textit{Latency thấp:} Inference speed nhanh đảm bảo response time tốt cho các tác vụ real-time như query understanding và entity extraction, cải thiện trải nghiệm người dùng.
+        \item \textit{Context window đầy đủ:} Hỗ trợ context length đủ lớn để xử lý các đoạn văn bản quy định và tài liệu học vụ thông thường mà không cần phân đoạn quá nhỏ.
+    \end{itemize}
+    \item \textbf{Use case:} Entity extraction (LightRAG), Metadata extraction (Temporal RAG Subgraph), Query understanding (Agent 1), Response generation (Agent 3).
 \end{itemize}
 
-\textbf{Reranker:}
+\subsubsection{Embedding Model}
 \begin{itemize}
-    \item Model: namdp-ptit/ViRanker
-    \item Architecture: Cross-encoder dựa trên PhoBERT
-    \item Performance: 85\%+ accuracy trên văn bản giáo dục tiếng Việt
-    \item Use case: Two-stage retrieval trong Metadata RAG Subgraph
+    \item \textbf{Model:} AlTeamVN/Vietnamese\_Embedding\_v2
+    \item \textbf{Dimension:} 1024-dim
+    \item \textbf{Lý do lựa chọn:}
+    \begin{itemize}
+        \item \textit{Chuyên biệt hóa tiếng Việt:} Model được fine-tune đặc biệt cho văn bản tiếng Việt, vượt trội so với các multilingual embedding models (như BGE-M3 \cite{xiao2024bgem3}) trên semantic similarity tasks cho tiếng Việt.
+        \item \textit{Dimension phù hợp:} 1024-dim cân bằng giữa khả năng biểu diễn ngữ nghĩa và hiệu quả lưu trữ/truy xuất trong vector database.
+        \item \textit{Domain alignment:} Model thể hiện hiệu năng tốt với văn bản chuyên ngành (giáo dục, hành chính) so với các general-purpose embeddings.
+    \end{itemize}
+    \item \textbf{Use case:} Indexing documents (chunk embedding), Query retrieval (semantic search trong Qdrant), Metadata RAG Subgraph (chunk retrieval).
+\end{itemize}
+
+\subsubsection{Reranker Model}
+\begin{itemize}
+    \item \textbf{Model:} namdp-ptit/ViRanker \cite{dang2025viranker}
+    \item \textbf{Architecture:} Cross-encoder dựa trên PhoBERT backbone
+    \item \textbf{Lý do lựa chọn:}
+    \begin{itemize}
+        \item \textit{Cross-encoder superiority:} Khác với bi-encoder (embedding model), cross-encoder có khả năng capture interaction giữa query và document tốt hơn, dẫn đến độ chính xác cao hơn trong reranking.
+        \item \textit{Vietnamese-specific:} Model được train đặc biệt cho văn bản tiếng Việt, đạt 85\%+ accuracy trên văn bản giáo dục tiếng Việt.
+        \item \textit{Two-stage efficiency:} Sử dụng trong giai đoạn 2 của retrieval (sau khi vector search), cho phép cân bằng giữa tốc độ (bi-encoder) và độ chính xác (cross-encoder).
+    \end{itemize}
+    \item \textbf{Use case:} Reranking top-k chunks trong Metadata RAG Subgraph, Quality assessment trong multi-factor ranking.
+\end{itemize}
+
+\subsubsection{OCR Model}
+\begin{itemize}
+    \item \textbf{Model:} DeepSeek-OCR
+    \item \textbf{Lý do lựa chọn:}
+    \begin{itemize}
+        \item \textit{Layout preservation:} Model có khả năng bảo toàn cấu trúc layout của tài liệu PDF phức tạp (bảng biểu, tiêu đề phân cấp), quan trọng để giữ nguyên hierarchy context cho chunking.
+        \item \textit{Markdown output:} Đầu ra dạng markdown giúp dễ dàng parse và maintain semantic structure của tài liệu.
+        \item \textit{Multilingual support:} Hỗ trợ tốt cả tiếng Việt và tiếng Anh, phù hợp với tài liệu học vụ thường chứa cả hai ngôn ngữ.
+    \end{itemize}
+    \item \textbf{Use case:} Pre-processing PDF documents trước khi indexing.
 \end{itemize}
 
 \section{Thiết kế thực nghiệm và Phương pháp đánh giá}
