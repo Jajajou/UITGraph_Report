@@ -1,0 +1,41 @@
+\chapter{Kết quả đạt được và Hướng phát triển}
+\label{chap:ketqua}
+
+\section{Kết quả chức năng (Functional Outcomes)}
+\label{sec:ketquachucnang}
+
+Hệ thống hướng tới việc hoàn thiện ba nhóm năng lực cốt lõi:
+
+\begin{itemize}
+    \item \textbf{Xây dựng Hybrid Knowledge Base:} Hợp nhất thành công ba luồng dữ liệu: Đồ thị tri thức (cấu trúc), Vector embeddings (ngữ nghĩa) và Metadata (thời gian), tạo nền tảng cho truy vấn đa chiều.
+    
+    \item \textbf{Cơ chế truy xuất nhận thức ngữ cảnh:} Hiện thực hóa thuật toán xếp hạng Cohort-aware, đảm bảo thông tin được trích xuất chính xác theo khóa sinh viên, loại bỏ nhiễu từ các văn bản không còn hiệu lực.
+    
+    \item \textbf{Sinh câu trả lời an toàn và minh bạch:} Hệ thống có khả năng tự động gắn trích dẫn nguồn và phát cảnh báo rủi ro đối với các văn bản sắp hết hạn hoặc đã có sửa đổi.
+\end{itemize}
+
+\section{Các chỉ số kỳ vọng}
+\label{sec:chisokyong}
+
+Dựa trên thiết kế thực nghiệm, hệ thống đặt ra các mốc hiệu năng mục tiêu để kiểm chứng tính khả thi và độ chính xác so với các phương pháp truyền thống.
+
+\begin{table}[H]
+\centering
+\caption{Bảng mục tiêu kỳ vọng}
+\label{tab:muctieukyvong}
+\begin{tabular}{|l|l|c|}
+\hline
+\textbf{Thành phần} & \textbf{Tiêu chí đánh giá} & \textbf{Target} \\
+\hline
+Temporal Extraction & Độ chính xác trích xuất metadata & $\geq$ 92\% \\
+\hline
+Query Routing & Độ chính xác phân loại Intent/Fallback & $\geq$ 90\% \\
+\hline
+Response Quality & Độ chính xác về tính thời gian & $\geq$ 90\% \\
+\hline
+Reranking & Khả năng cải thiện Top-1 so với Baseline & $\geq$ 85\% \\
+\hline
+Indexing Performance & Độ trễ đồng bộ Metadata (Sync Lag) & Thấp (Real-time) \\
+\hline
+\end{tabular}
+\end{table}

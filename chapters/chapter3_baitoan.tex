@@ -1,0 +1,177 @@
+\chapter{Bài toán}
+\label{chap:baitoan}
+
+Trong môi trường đại học, thông tin học vụ và hành chính thường tồn tại dưới dạng nhiều văn bản quy định, thông báo và hướng dẫn, được công bố phân tán trên nhiều kênh (website, cổng thông tin, tài liệu PDF/HTML, thông báo nội bộ). Đặc điểm quan trọng của nhóm tài liệu này là tính thay đổi theo thời gian: văn bản có thể có ngày hiệu lực/hết hiệu lực, có thể được sửa đổi hoặc bổ sung bởi văn bản khác, và có thể chỉ áp dụng cho một nhóm đối tượng nhất định (ví dụ theo khóa sinh viên).
+
+Bài toán đặt ra là xây dựng một hệ thống hỏi--đáp dựa trên tài liệu UIT có khả năng:
+\begin{enumerate}
+    \item[(i)] Truy xuất đúng nguồn,
+    \item[(ii)] Tổng hợp câu trả lời có căn cứ (kèm trích dẫn),
+    \item[(iii)] Bảo đảm tính đúng đắn theo thời gian và đối tượng áp dụng tại thời điểm người dùng đặt câu hỏi.
+\end{enumerate}
+
+\section{Đầu vào và đầu ra}
+\label{sec:inputoutput}
+
+\subsection{Đầu vào}
+\label{subsec:input}
+
+Hệ thống nhận vào bộ ba $(D, q, c)$ tại thời điểm truy vấn $t_{query}$.
+
+\begin{itemize}
+    \item \textbf{Tập tài liệu} $D = \{d_1, d_2, ..., d_n\}$. Mỗi tài liệu $d_i$ bao gồm nội dung sau xử lý (ví dụ: văn bản/markdown trích xuất từ web hoặc PDF), biểu diễn embedding để truy xuất, và siêu dữ liệu thời gian.
+    
+    \item \textbf{Biểu diễn hình thức:} $d_i = \langle Content_i, Embedding_i, Meta_i \rangle$.
+    
+    \item Trong đó, $Meta_i$ là tập thuộc tính dùng để quản lý hiệu lực và quan hệ văn bản, gồm tối thiểu: \{\texttt{valid\_from}, \texttt{valid\_until}, \texttt{document\_number}, \texttt{student\_cohorts}, \texttt{amends\_documents}, \texttt{amended\_by}, \texttt{temporal\_extraction\_method}, \texttt{temporal\_confidence}, \texttt{indexed\_at}, \texttt{is\_archived}, \texttt{archived\_at}, \texttt{archive\_reason}\}.
+    
+    \item \textbf{Truy vấn} $q$: Câu hỏi ngôn ngữ tự nhiên của người dùng.
+    
+    \item \textbf{Ngữ cảnh} $c$: Thông tin truy vấn kèm thuộc tính khóa sinh viên $K_c$ (tương ứng năm khóa cần áp dụng trong truy vấn).
+\end{itemize}
+
+\subsection{Đầu ra}
+\label{subsec:output}
+
+Hệ thống trả về bộ kết quả gồm câu trả lời và tập bằng chứng:
+
+\begin{itemize}
+    \item \textbf{Câu trả lời} $A$: Văn bản tiếng Việt được sinh bởi mô hình ngôn ngữ dựa trên ngữ cảnh truy xuất.
+    
+    \item \textbf{Tập bằng chứng} $S \subset D$: Tập các đoạn trích (chunks) được chọn làm căn cứ cho $A$, kèm tham chiếu nguồn.
+    
+    \item \textbf{Cảnh báo hiệu lực} $W$: Thông báo cho người dùng nếu bằng chứng thuộc trạng thái đã hết hiệu lực, sắp hết hiệu lực, bị sửa đổi, hoặc bị lưu trữ (archived).
+\end{itemize}
+
+\section{Mô hình hóa bài toán}
+\label{sec:mohinhbaitoan}
+
+Bài toán được mô hình hóa thành hai pha xử lý: pha lập chỉ mục (offline) và pha truy vấn - xếp hạng (online).
+
+\subsection{Pha lập chỉ mục (offline)}
+\label{subsec:phaoffline}
+
+Mục tiêu của pha offline là ánh xạ tập tài liệu thô $D$ thành cơ sở tri thức phục vụ truy xuất gồm: đồ thị tri thức, kho vector và kho metadata thời gian.
+
+\begin{itemize}
+    \item \textbf{Xử lý nội dung:} Thu thập tài liệu từ web và/hoặc PDF; với PDF, trích xuất văn bản và bố cục để tạo nội dung dạng markdown.
+    
+    \item \textbf{Trích xuất metadata thời gian} theo tiếp cận đa chiến lược:
+    \begin{itemize}
+        \item Regex tiếng Việt
+        \item Trích xuất bằng mô hình ngôn ngữ khi độ tin cậy thấp
+        \item Suy luận bổ sung từ tên file khi thiếu trường.
+    \end{itemize}
+    
+    \item \textbf{Liên kết quan hệ sửa đổi:} Thiết lập quan hệ giữa các văn bản khi tài liệu $d_i$ sửa đổi/bổ sung văn bản khác (\texttt{amends\_documents}), và ngược lại (\texttt{amended\_by}).
+    
+    \item \textbf{Gắn metadata} theo \texttt{track\_id} trong quá trình upload để cập nhật metadata trực tiếp, tránh cơ chế polling.
+\end{itemize}
+
+\subsection{Pha truy vấn (online)}
+\label{subsec:phaonline}
+
+Trong pha online, hệ thống truy xuất một tập ứng viên từ $D$ và thực hiện xếp hạng dựa trên điểm ngữ nghĩa, điểm thời gian và hệ số tăng cường theo khóa sinh viên.
+
+Bài toán lựa chọn tập bằng chứng tối ưu $S^*$ được mô hình hóa như sau:
+
+\begin{equation}
+S^* = \arg\max_{S \subset D} Score(S \mid q, t_{query}, c)
+\end{equation}
+
+Trong đó, điểm tổng hợp cho mỗi tài liệu ứng viên $d_i$ được tính theo công thức:
+
+\begin{equation}
+\label{eq:finalscore}
+final\_score(d_i) = \left[ (1 - w) \cdot semantic\_score + w \cdot temporal\_score \right] \times cohort\_boost
+\end{equation}
+
+Với $w$ là trọng số cân bằng giữa ngữ nghĩa và thời gian (mặc định $w = 0.3$, có thể cấu hình). Các thành phần được mô tả như sau:
+
+\subsubsection{Điểm ngữ nghĩa (semantic\_score)}
+
+Điểm tương đồng giữa truy vấn $q$ và tài liệu ứng viên, được lấy từ tín hiệu truy xuất theo vector và xếp hạng theo đồ thị (Vector Similarity + Graph Ranking).
+
+\subsubsection{Hệ số tăng cường theo khóa sinh viên (cohort\_boost)}
+
+Hệ số nhân ưu tiên tài liệu có danh sách khóa áp dụng phù hợp với khóa sinh viên trích từ ngữ cảnh $c$.
+
+\begin{itemize}
+    \item Nếu thiếu khóa truy vấn hoặc tài liệu không có danh sách khóa: $cohort\_boost = 1.0$.
+    \item Khớp chính xác ($query\_cohort \in document\_cohorts$): $cohort\_boost = 1.5$.
+    \item Khớp gần (trong khoảng $\pm 3$ năm so với một khóa bất kỳ của tài liệu): $cohort\_boost = 1.2$.
+    \item Các trường hợp còn lại: $cohort\_boost = 1.0$.
+\end{itemize}
+
+\subsubsection{Điểm thời gian (temporal\_score)}
+
+Điểm này nằm trong khoảng $[0, 1]$, phản ánh đồng thời trạng thái hiệu lực và độ mới của tài liệu. Điểm thời gian được tính theo hai bước:
+\begin{enumerate}
+    \item[(i)] Tính điểm cơ sở theo hàm \texttt{calculate\_temporal\_score},
+    \item[(ii)] Hiệu chỉnh bởi các hệ số phạt chất lượng.
+\end{enumerate}
+
+\textbf{Bước 1 (Temporal base):} $temporal\_base = calculate\_temporal\_score(d_i, t_{query})$.
+
+Hàm \texttt{calculate\_temporal\_score} được mô tả theo các trường hợp:
+
+\begin{itemize}
+    \item Nếu $is\_archived = True$: $temporal\_base = 0.0$.
+    \item Nếu tài liệu đã hết hiệu lực tại $t_{query}$:
+    \begin{itemize}
+        \item Nếu $days\_expired > 365$: $temporal\_base = 0.1$.
+        \item Ngược lại ($0 < days\_expired \leq 365$): $temporal\_base = 0.5 - \frac{days\_expired}{365} \times 0.4$.
+    \end{itemize}
+    \item Nếu tài liệu có thuộc tính \texttt{amended\_by} (đã bị văn bản khác sửa đổi/bổ sung): $temporal\_base = 0.3$.
+    \item Nếu tài liệu còn hiệu lực (valid) thì áp dụng suy giảm theo thời gian lập chỉ mục \texttt{indexed\_at} với $days\_old$:
+    \begin{itemize}
+        \item Nếu $days\_old \leq 30$: $temporal\_base = 1.0$.
+        \item Nếu $30 < days\_old \leq 365$: $temporal\_base = 0.9 - \frac{days\_old - 30}{365} \times 0.2$ (giảm về 0.7).
+        \item Nếu $days\_old > 365$: $temporal\_base = \max(0.5, 0.7 - \frac{days\_old - 365}{365} \times 0.2)$.
+    \end{itemize}
+\end{itemize}
+
+\textbf{Bước 2 (Quality penalties):} $temporal\_score = temporal\_base \times penalty\_factor$, trong đó:
+
+\begin{itemize}
+    \item Nếu tài liệu đã hết hiệu lực (expired): $penalty\_factor = 0.5$.
+    \item Nếu tài liệu sắp hết hiệu lực trong $< 30$ ngày (expiring soon): $penalty\_factor = 0.8$.
+    \item Các trường hợp còn lại: $penalty\_factor = 1.0$.
+\end{itemize}
+
+Cuối cùng, hệ thống sắp xếp các ứng viên theo $final\_score$ giảm dần và chọn các tài liệu có điểm cao nhất làm tập bằng chứng trả về.
+
+\section{Kiến trúc Metadata RAG Subgraph}
+\label{sec:metadatarag}
+
+Thay vì sử dụng các phương pháp trích xuất thông tin truyền thống (như Regex cứng nhắc hay LLM Prompting đơn lẻ) vốn dễ gặp lỗi ảo giác với các văn bản pháp quy phức tạp, đề tài đề xuất kiến trúc \textbf{Metadata RAG Subgraph}.
+
+Đây là một quy trình RAG thu nhỏ (mini-RAG workflow) chuyên biệt, coi việc xác định siêu dữ liệu thời gian là một bài toán Hỏi-Đáp (Question Answering) ngược vào chính tài liệu đó.
+
+\subsection{Quy trình xử lý}
+\label{subsec:quytrinhxuly}
+
+Dựa trên kiến trúc hệ thống, quy trình trích xuất metadata được vận hành tự động như sau:
+
+\begin{enumerate}
+    \item \textbf{Phân mảnh ngữ cảnh lớn (Chunking):} Tài liệu được chia thành các đoạn lớn để giữ trọn vẹn ngữ cảnh các điều khoản quy định.
+    
+    \item \textbf{Lập chỉ mục tạm thời (In-Memory Indexing):} Hệ thống khởi tạo một vector store tạm thời chỉ tồn tại trong quá trình xử lý tài liệu đó.
+    
+    \item \textbf{Truy vấn Metadata (RAG):} Hệ thống thực hiện truy xuất hai giai đoạn (Two-Stage Retrieval):
+    \begin{itemize}
+        \item \textit{Giai đoạn 1:} Sử dụng Bi-Encoder để quét nhanh 50 đoạn văn bản liên quan đến ``ngày hiệu lực'', ``phạm vi áp dụng''.
+        \item \textit{Giai đoạn 2:} Sử dụng Cross-Encoder (ViRanker) để xếp hạng lại và chọn ra 5 đoạn chính xác nhất.
+    \end{itemize}
+    
+    \item \textbf{Tính điểm tin cậy (Confidence Scoring):} Kết quả trích xuất được chấm điểm dựa trên công thức trọng số: 40\% độ đầy đủ + 40\% điểm tin cậy LLM + 20\% chất lượng đoạn văn.
+    
+    \item \textbf{Kiểm tra và Định dạng:} Dữ liệu được đưa qua một bộ lọc để chuẩn hóa định dạng ngày tháng (YYYY-MM-DD) và chuẩn hóa số hiệu văn bản.
+    
+    \item \textbf{Dọn dẹp (Cleanup):} Xóa vector store tạm thời để giải phóng tài nguyên.
+\end{enumerate}
+
+\subsection{Hiệu quả}
+\label{subsec:hieuqua}
+
+Thực nghiệm cho thấy kiến trúc Metadata RAG Subgraph đạt độ tin cậy trung bình 0.92, cải thiện 83\% so với phương pháp Regex truyền thống (chỉ đạt 0.5-0.6). Cơ chế này cho phép hệ thống ``hiểu'' được các quan hệ thời gian ẩn (như ``văn bản này có hiệu lực sau 45 ngày kể từ ngày ký'') mà các phương pháp khớp mẫu thông thường không thể xử lý được.

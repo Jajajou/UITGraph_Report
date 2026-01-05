@@ -1,0 +1,125 @@
+\chapter{Nghiên cứu liên quan}
+\label{chap:nghiencuulienquan}
+
+\section{Tổng quan}
+\label{sec:tqnclq}
+
+Retrieval-Augmented Generation (RAG) được nghiên cứu rộng rãi trong các hệ thống hỏi--đáp dựa trên tài liệu, đặc biệt trong bối cảnh giáo dục và quản trị tri thức tổ chức \cite{lewis2020rag}. Nhóm công trình liên quan có thể quy về ba mạch kỹ thuật:
+
+\begin{enumerate}
+    \item RAG tăng cường bởi đồ thị (Graph-enhanced RAG) để khai thác quan hệ thực thể và hỗ trợ truy vấn toàn cục;
+    \item Quy trình tác tử (agentic) để điều phối pipeline nhiều bước, kiểm soát trạng thái và chất lượng;
+    \item Temporal/Version-aware RAG để xử lý tri thức biến đổi theo thời gian.
+\end{enumerate}
+
+Tuy nhiên, khi áp dụng vào miền dữ liệu học vụ, mục tiêu không chỉ là truy xuất ``đúng chủ đề'' mà phải truy xuất ``đúng hiệu lực, đúng đối tượng áp dụng'', đồng thời truy vết được văn bản sửa đổi/bổ sung -- đây là ràng buộc mà nhiều hướng tiếp cận hiện tại chưa đáp ứng đầy đủ.
+
+\section{Graph-Enhanced RAG}
+\label{sec:graphrag}
+
+\subsection{Microsoft GraphRAG}
+\label{subsec:msgraphrag}
+
+Microsoft GraphRAG \cite{edge2024graphrag} tích hợp đồ thị tri thức vào pipeline RAG bằng cách trích xuất thực thể--quan hệ, sau đó tổ chức tri thức theo các cộng đồng (communities) bằng community detection để hỗ trợ truy vấn toàn cục (global queries) cần tổng hợp từ nhiều vùng tri thức. Độ bao phủ của đồ thị sẽ phụ thuộc mạnh vào độ dài ngữ cảnh của Large Language Model (LLM) được sử dụng.
+
+Mặc dù mạnh mẽ về cấu trúc, Microsoft GraphRAG tốn rất nhiều chi phí để vận hành và sử dụng, điểm yếu của Microsoft GraphRAG còn nằm trong miền dữ liệu học vụ nằm ở pha lập chỉ mục/truy vấn, đồng thời không xử lý trực tiếp các ràng buộc hiệu lực văn bản, quan hệ sửa đổi và phạm vi áp dụng theo khóa sinh viên.
+
+\subsection{LightRAG}
+\label{subsec:lightrag}
+
+LightRAG \cite{guo2024lightrag} hướng tới giảm chi phí của GraphRAG bằng kiến trúc truy xuất kép (dual-level retrieval): truy xuất mức thấp theo entities/relationships phục vụ truy vấn cụ thể và truy xuất mức cao theo community summaries phục vụ truy vấn tổng quan. Cách thiết kế này giúp giảm tải token và cải thiện khả năng tổng hợp ngữ cảnh.
+
+Thách thức lớn nhất ngăn cản LightRAG ứng dụng vào bối cảnh này là thiếu lớp suy luận theo ``hiệu lực'' và ``đối tượng áp dụng'', nên vẫn có nguy cơ ưu tiên các đoạn đúng ngữ nghĩa nhưng sai phiên bản hoặc sai thời điểm.
+
+\subsection{HippoRAG}
+\label{subsec:hipporag}
+
+HippoRAG \cite{xu2024hipporag} mô phỏng cơ chế bộ nhớ dài hạn và dùng Personalized PageRank (PPR) để xếp hạng tri thức theo cấu trúc liên kết, từ đó tăng khả năng kết nối ngữ cảnh và gợi ý multi-hop. Dù vậy, rào cản chính của HippoRAG nằm ở độ phức tạp khi triển khai thực tế, đồng thời thiếu vắng cơ chế chỉ ra rõ cách ràng buộc hiệu lực/phiên bản để tránh trả lời dựa trên văn bản đã hết hiệu lực hoặc đã bị sửa đổi.
+
+\section{Agentic Workflow Orchestration với LangGraph}
+\label{sec:langgraph}
+
+Các framework điều phối như LangGraph \cite{langgraph_overview, langgraph_multiagent, langgraph_lowlevel} hỗ trợ xây dựng pipeline dạng đồ thị trạng thái (stateful), cho phép rẽ nhánh theo điều kiện, tái sử dụng trạng thái truy vấn và kiểm soát nhiều bước xử lý (hiểu truy vấn $\rightarrow$ truy xuất $\rightarrow$ kiểm định chất lượng $\rightarrow$ tổng hợp). Về mặt thuật toán, điểm mạnh của cách tiếp cận này là:
+
+\begin{enumerate}
+    \item[(i)] Chuẩn hóa trạng thái (schema) để theo dõi biến trung gian;
+    \item[(ii)] Định tuyến có điều kiện dựa trên ngưỡng confidence/quality;
+    \item[(iii)] Chèn checkpoint để có thể kiểm soát/human-in-the-loop khi cần.
+\end{enumerate}
+
+Song, bản thân orchestration chỉ giải quyết bài toán quy trình mà bỏ ngỏ bài toán ngữ nghĩa thời gian. Nếu tầng truy xuất bên dưới không có ràng buộc temporal, hệ vẫn có thể tổng hợp từ ngữ cảnh sai phiên bản.
+
+\section{Temporal/Version-aware RAG}
+\label{sec:temporalrag}
+
+\subsection{T-GRAG}
+\label{subsec:tgrag}
+
+T-GRAG \cite{tgrag2025} xử lý tri thức biến đổi theo thời gian bằng đồ thị tri thức có đánh dấu thời gian (time-stamped knowledge graph) và cơ chế phân rã truy vấn theo thời gian (temporal query decomposition), sau đó truy xuất theo nhiều lớp để trả lời câu hỏi nhạy thời gian. Dù đã tiếp cận khía cạnh thời gian, T-GRAG vẫn chưa thể giải quyết trọn vẹn bài toán, mô hình hóa ``tiến hóa tri thức'' chưa tương đương với quản lý ``khoảng hiệu lực'' (\texttt{valid\_from}/\texttt{valid\_until}) và ``quan hệ sửa đổi/bổ sung'' vốn phổ biến trong văn bản quy định.
+
+\subsection{VersionRAG}
+\label{subsec:versionrag}
+
+VersionRAG \cite{versionrag2025} tập trung vào tài liệu có chuỗi phiên bản rõ ràng (v1$\rightarrow$v2$\rightarrow$v3), xây dựng version graph phân cấp và phát hiện thay đổi ngầm định để định tuyến truy xuất theo phiên bản phù hợp. Điểm hạn chế của hướng tiếp cận này là sự phụ thuộc cứng nhắc vào chuỗi phiên bản (version chain), trong khi dữ liệu quy định thực tế đòi hỏi mô hình hóa trực tiếp hiệu lực và quan hệ amendment thay vì chỉ dựa vào chuỗi version.
+
+\section{Các hệ thống RAG trong miền dữ liệu giáo dục đại học tại Việt Nam}
+\label{sec:ragvn}
+
+Trong miền dữ liệu giáo dục đại học, các hệ thống hỏi đáp (QA Systems) đang chuyển dịch mạnh mẽ từ các chatbot dựa trên quy tắc (rule-based) sang các mô hình sinh văn bản có truy xuất (RAG). Tại Việt Nam, một số nghiên cứu tiêu biểu dưới đây đã bước đầu giải quyết bài toán tư vấn tuyển sinh và quy chế đào tạo.
+
+Tuy nhiên, điểm hạn chế chung của các hệ thống hiện có là việc phụ thuộc quá lớn vào tìm kiếm tương đồng vector (Vector Similarity Search) đơn thuần. Cách tiếp cận này thường gặp khó khăn khi đối mặt với hai thách thức đặc thù của văn bản hành chính nhà trường:
+
+\begin{enumerate}
+    \item \textbf{Sự phân mảnh thông tin:} Câu trả lời thường nằm rải rác ở nhiều văn bản khác nhau (ví dụ: điều kiện học bổng nằm ở Quyết định A, nhưng mức tiền lại nằm ở Thông báo B), đòi hỏi khả năng suy luận đa bước.
+    \item \textbf{Tính biến động theo thời gian:} Các hệ thống RAG cơ bản thường truy xuất dựa trên mức độ liên quan về từ khóa mà bỏ qua trạng thái hiệu lực (validity) của văn bản, dẫn đến việc cung cấp thông tin từ các quy chế đã hết hạn hoặc bị thay thế.
+\end{enumerate}
+
+\subsection{URAG -- Đại học Bách Khoa TP.HCM}
+\label{subsec:urag}
+
+URAG \cite{nguyen2025urag} triển khai theo hướng RAG cơ bản dựa trên tìm kiếm vector để hỗ trợ tư vấn thông tin. Do giới hạn về công nghệ nền tảng, các hệ thống trên chưa thể biểu diễn quan hệ và thiếu quản lý hiệu lực; do đó khó hỗ trợ truy vấn toàn cục/multi-hop và khó đảm bảo trả lời đúng khi quy định thay đổi.
+
+\subsection{REBot -- Đại học Cần Thơ}
+\label{subsec:rebot}
+
+REBot \cite{ma2025rebot} kết hợp rule-based và retrieval để tư vấn thông tin chung. Nhược điểm chung của nhóm giải pháp này là phạm vi bao phủ và cơ chế cập nhật/hiệu lực chưa rõ ràng, nên độ tin cậy giảm mạnh đối với câu hỏi phụ thuộc thời điểm hoặc văn bản bị sửa đổi.
+
+$\Rightarrow$ Sự phụ thuộc thuần túy vào tìm kiếm vector khiến các hệ thống này dễ gặp lỗi ảo giác khi đối mặt với các văn bản sửa đổi có nội dung ngữ nghĩa tương đồng cao nhưng mang hiệu lực pháp lý đối lập.
+
+\section{Phân tích so sánh và Lựa chọn giải pháp}
+\label{sec:sosanhgiaiphap}
+
+Để làm rõ vị trí và tính mới của giải pháp đề xuất, chúng tôi thực hiện so sánh các mô hình RAG tiêu biểu dựa trên các tiêu chí kỹ thuật nâng cao:
+
+\begin{itemize}
+    \item \textbf{Cấu trúc tri thức (Knowledge Structure):} Cách hệ thống tổ chức dữ liệu (Vector phẳng hay Đồ thị có cấu trúc).
+    \item \textbf{Suy luận đa bước (Multi-hop Reasoning):} Khả năng kết nối thông tin từ các thực thể gián tiếp để trả lời câu hỏi phức tạp.
+    \item \textbf{Chiến lược xử lý siêu dữ liệu (Metadata Strategy):} Phương pháp hệ thống sử dụng để trích xuất và chuẩn hóa các thông tin thời gian (ngày hiệu lực, văn bản sửa đổi).
+\end{itemize}
+
+\begin{table}[H]
+\centering
+\caption{So sánh các hướng tiếp cận RAG hiện nay}
+\label{tab:sosanhrag}
+\begin{tabular}{|l|c|c|c|c|}
+\hline
+\textbf{Feature} & \textbf{NaiveRAG} & \textbf{GraphRAG} & \textbf{T-GRAG} & \textbf{UITGraph} \\
+ & (URAG, REBot) & (Microsoft) & & (Ours) \\
+\hline
+Cấu trúc tri thức & Vector Store & Đồ thị tri thức & Đồ thị có nhãn & Đồ thị + \\
+ & & & thời gian & Temporal Metadata \\
+\hline
+Multi-hop Reasoning & Không có & Cao & Trung bình & Cao (Nhờ LightRAG) \\
+\hline
+Xử lý thời gian & Không có & Không có & Chỉ tịnh tiến & Validity \& \\
+(Temporal) & & & & Amendment \\
+\hline
+Cơ chế Metadata & Không xác định & Trích xuất & Regex/ & RAG-based \\
+ & & thực thể (Entity) & Rule-based & Subgraph \\
+\hline
+Chi phí vận hành & Thấp & Rất cao & Trung Bình & Tối ưu \\
+\hline
+\end{tabular}
+\end{table}
+
+$\Rightarrow$ Trong khi GraphRAG mạnh về suy luận nhưng chi phí quá cao, và các giải pháp Naive RAG thiếu độ chính xác về ngữ cảnh, UITGraph lựa chọn cách tiếp cận cân bằng: sử dụng LightRAG \cite{guo2024lightrag} cho suy luận cấu trúc và tích hợp module chuyên biệt Metadata RAG để xử lý bài toán thời gian với chi phí thấp.

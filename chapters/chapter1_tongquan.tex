@@ -1,0 +1,62 @@
+\chapter{Giới thiệu đề tài}
+\label{chap:tongquan}
+
+\section{Bối cảnh và Động lực}
+
+Chuyển đổi số tại Trường Đại học Công nghệ Thông tin - ĐHQG - HCM (UIT) kéo theo nhu cầu cung cấp thông tin chính xác, kịp thời và nhất quán cho các bên liên quan: sinh viên, giảng viên, cố vấn học tập, các phòng/ban chức năng. Thực tế, tri thức vận hành của UIT được phân tán trên nhiều hệ thống: website trường và các đơn vị, cổng thông tin, LMS, email nội bộ, văn bản/quy định, cùng các kênh truyền thông.
+
+Sự phân mảnh này khiến việc truy vấn thông tin thường mất thời gian, khó đồng bộ, khó truy vết nguồn, đồng thời làm tăng tải cho các bộ phận hỗ trợ. Trong bối cảnh đó, cách tiếp cận \textbf{Retrieval-Augmented Generation (RAG)} cho phép hệ thống vừa truy xuất tài liệu liên quan, vừa tổng hợp câu trả lời theo ngữ cảnh.
+
+\section{Vấn đề nghiên cứu}
+
+Tuy vậy, RAG truyền thống (dựa chủ yếu vào tìm kiếm tương tự vector) bộc lộ hạn chế khi áp dụng cho môi trường đại học:
+
+\subsection{Thiếu khả năng suy luận đa bước (multi-hop reasoning)}
+
+Các câu hỏi như \textit{``Tôi là sinh viên năm 3 ngành CNTT, muốn xin học bổng và đăng ký thực tập, cần điều kiện gì?''} đòi hỏi kết nối thông tin từ nhiều nguồn khác nhau (quy định học bổng, yêu cầu thực tập, quy trình thực tập, điều kiện theo từng năm học).
+
+\subsection{Không nắm bắt được mối quan hệ giữa các thực thể}
+
+Mối quan hệ giữa khoa/viện, chương trình đào tạo, học phần, giảng viên, và các quy định liên quan thường bị bỏ qua trong các hệ thống chỉ dựa vào biểu diễn vector (vector embeddings).
+
+\subsection{Hiệu suất kém với câu hỏi yêu cầu toàn cục (global query)}
+
+Câu hỏi có dạng \textit{``Có những loại học bổng nào dành cho sinh viên năm 3?''} cần tổng hợp thông tin từ toàn bộ kho tri thức (knowledge base), không chỉ truy xuất các đoạn văn bản tương tự.
+
+\subsection{Thiếu khả năng quản lý tài liệu theo thời gian}
+
+\textbf{Đây là vấn đề quan trọng nhất trong bối cảnh đại học:} Văn bản quy định, quy chế có tính thời gian rõ ràng:
+
+\begin{itemize}
+    \item \textbf{Hiệu lực:} Quyết định có ngày bắt đầu và ngày hết hiệu lực
+    \item \textbf{Sửa đổi/Bổ sung:} Quy định mới thay thế hoặc sửa đổi quy định cũ
+    \item \textbf{Áp dụng theo cohort:} Quy định khác nhau cho từng khóa sinh viên
+\end{itemize}
+
+\textbf{Ví dụ thực tế:}
+\begin{itemize}
+    \item Quyết định 108/QĐ-ĐHCNTT (2019) sửa đổi Quyết định 141/QĐ-ĐHCNTT (2018)
+    \item Quy chế đào tạo 2024 thay thế Quy chế 2020 
+    \item Học phí năm 2025 chỉ áp dụng cho sinh viên khóa 2025-2032
+\end{itemize}
+
+Các hệ thống RAG hiện tại \textbf{không có cơ chế} để:
+\begin{enumerate}
+    \item Phân biệt tài liệu còn hiệu lực vs hết hạn
+    \item Ưu tiên tài liệu mới khi retrieval
+    \item Truy vết quan hệ sửa đổi giữa các văn bản
+    \item Lọc tài liệu theo cohort sinh viên
+\end{enumerate}
+
+\section{Bài toán trung tâm}
+
+\textbf{Làm thế nào để xây dựng một hệ thống hỏi--đáp cho tri thức của UIT vừa truy xuất đúng chỗ, vừa tổng hợp có căn cứ, đồng thời:}
+
+\begin{itemize}
+    \item Giải thích được nguồn gốc thông tin
+    \item Vận hành hiệu quả (độ trễ, chi phí)
+    \item \textbf{Quản lý được tính thời gian của tài liệu} (quy chế, lịch học, học phần, biểu mẫu...)
+    \item \textbf{Đảm bảo trả về thông tin còn hiệu lực} và phù hợp với cohort người dùng
+\end{itemize}
+
+Vì vậy, đề tài tập trung nghiên cứu mô hình \textbf{UITGraph: Temporal-Aware Graph-RAG cho tài liệu UIT}, kết hợp truy xuất dựa trên cấu trúc đồ thị với cơ chế Temporal Awareness, nhằm nâng cao độ tin cậy của câu trả lời trong môi trường tri thức động.

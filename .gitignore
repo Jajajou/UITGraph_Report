@@ -1,0 +1,52 @@
+# LaTeX auxiliary files
+*.aux
+*.log
+*.out
+*.toc
+*.lof
+*.lot
+*.bbl
+*.blg
+*.synctex.gz
+*.fdb_latexmk
+*.fls
+*.bcf
+*.run.xml
+*.nav
+*.snm
+*.vrb
+
+# Build directory
+build/
+
+# Temporary files
+*~
+*.backup
+*.bak
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.sublime-*
+
+# Optional: Uncomment if you don't want to track PDF
+# *.pdf
+
+# Keep specific directories
+!images/
+!chapters/
+CLAUDE.md
+generate_diagrams.sh
+images/code/deployment_architecture.md
+images/code/indexing_flow.md
+images/code/lightrag_architecture.md
+images/code/metadata_rag_subgraph.md
+images/code/query_flow.md
+images/code/query_pipeline.md
+images/code/system_architecture.md

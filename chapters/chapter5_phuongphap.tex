@@ -1,0 +1,533 @@
+\chapter{Phương pháp thực hiện}
+\label{chap:phuongphap}
+
+\section{Tổng quan phương pháp}
+\label{sec:tongquanpp}
+
+Hệ thống UITGraph được xây dựng và triển khai theo phương pháp tiếp cận hai pha (two-phase approach), đảm bảo sự tách biệt giữa quá trình xử lý dữ liệu chuyên sâu và quá trình phản hồi thời gian thực:
+
+\begin{enumerate}
+    \item \textbf{Pha lập chỉ mục ngoại tuyến (Offline Indexing):} Tập trung vào việc chuẩn hóa nguồn dữ liệu đa dạng, trích xuất tri thức cốt lõi và metadata thời gian, từ đó xây dựng cơ sở tri thức đa chiều.
+    
+    \item \textbf{Pha truy vấn trực tuyến (Online Retrieval \& Generation):} Thực hiện hiểu câu hỏi người dùng, truy xuất thông tin dựa trên xếp hạng ngữ nghĩa -- thời gian -- ngữ cảnh sinh viên, và tổng hợp câu trả lời có trích dẫn xác thực.
+\end{enumerate}
+
+Toàn bộ quy trình được điều phối bởi LangGraph dưới dạng một quy trình làm việc có trạng thái (stateful workflow). Kiến trúc này cho phép hệ thống duy trì ngữ cảnh xử lý, định tuyến linh hoạt dựa trên độ tin cậy của dữ liệu và tự động điều hướng khi gặp lỗi (fallback mechanisms).
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{images/img/system_architecture.png}
+    \caption{Tổng quan kiến trúc hệ thống UITRaph và các lớp xử lý}
+    \label{fig:tongquankientruc}
+\end{figure}
+
+\section{Thu thập dữ liệu và chuẩn hóa tài liệu}
+\label{sec:thuthapdulieu}
+
+Hệ thống thiết lập quy trình tiếp nhận tài liệu đa kênh để đảm bảo độ bao phủ thông tin:
+
+\begin{itemize}
+    \item \textbf{Thu thập tự động:} Sử dụng dịch vụ Firecrawl \cite{firecrawl} để quét và trích xuất dữ liệu từ các trang web công khai của UIT.
+    
+    \item \textbf{Tải lên thủ công:} Cho phép quản trị viên cập nhật tài liệu nội bộ qua giao diện Streamlit.
+    
+    \item \textbf{Kênh thông báo:} Tích hợp nguồn dữ liệu từ email và các thông báo hành chính.
+\end{itemize}
+
+Dữ liệu thô sau khi thu thập sẽ được chuẩn hóa về định dạng Markdown trước khi đưa vào pha lập chỉ mục. Chiến lược xử lý được chia theo định dạng tệp:
+
+\begin{itemize}
+    \item \textbf{Tài liệu HTML/văn bản:} Trích xuất nội dung và loại bỏ nhiễu trình bày để thu được văn bản phục vụ phân đoạn và trích xuất tri thức.
+    
+    \item \textbf{Đối với tài liệu PDF phức tạp} (chứa bảng biểu, tiêu đề phân cấp), hệ thống tích hợp mô hình DeepSeek-OCR nhằm bảo toàn cấu trúc layout. Đầu ra markdown từ OCR giúp giữ nguyên ngữ cảnh phân cấp (hierarchy context), tạo tiền đề quan trọng cho việc cắt đoạn (chunking) chính xác ở bước sau.
+\end{itemize}
+
+\section{Pha lập chỉ mục ngoại tuyến (Offline Indexing)}
+\label{sec:offlineindexing}
+
+Mục tiêu của pha này là chuyển đổi tài liệu thô thành ba cấu phần lưu trữ phục vụ cho các chiến lược truy vấn khác nhau:
+
+\begin{enumerate}
+    \item \textbf{Vector Embeddings (Qdrant) \cite{qdrant}:} Phục vụ tìm kiếm tương đồng ngữ nghĩa.
+    \item \textbf{Knowledge Graph (Neo4j/NetworkX):} Phục vụ suy luận đa bước và truy vấn cấu trúc.
+    \item \textbf{Relational Metadata (PostgreSQL) \cite{postgresql}:} Đóng vai trò ``Source of Truth'' để kiểm soát tính hiệu lực và vòng đời tài liệu.
+\end{enumerate}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{images/img/indexing_flow.png}
+    \caption{Trình tự xử lý trong luồng lập chỉ mục (Indexing Flow)}
+    \label{fig:indexingflow}
+\end{figure}
+
+\subsection{Điều phối quy trình và quản lý trạng thái bằng LangGraph}
+\label{subsec:dieuphoi}
+
+Toàn bộ quy trình lập chỉ mục được mô hình hóa thành một \textbf{Indexing Graph} -- một workflow có trạng thái (stateful workflow) được quản lý bởi framework LangGraph \cite{langgraph_overview}. Quy trình này thực hiện tuần tự các bước: khởi tạo danh sách tệp, kiểm tra định dạng, phân tích nội dung (tích hợp DeepSeek-OCR cho PDF), trích xuất metadata thời gian, và cuối cùng là tích hợp vào cơ sở tri thức LightRAG.
+
+Khác với các luồng xử lý tuyến tính truyền thống, kiến trúc này duy trì một trạng thái xuyên suốt vòng đời xử lý. Cấu trúc này lưu trữ ba nhóm thông tin trọng yếu:
+
+\begin{enumerate}
+    \item \textbf{Ngữ cảnh xử lý:} Bao gồm đường dẫn nguồn, loại tệp, và cấu hình phiên làm việc.
+    
+    \item \textbf{Dữ liệu trung gian:} Chứa nội dung Markdown sau chuẩn hóa, kết quả OCR, và các metadata thời gian trích xuất được. Việc lưu trữ này cho phép các node xử lý sau có thể truy xuất lại kết quả của node trước đó mà không cần tính toán lại.
+    
+    \item \textbf{Cơ chế kiểm soát lỗi:} Hệ thống ghi nhận trạng thái lỗi cục bộ (theo từng tệp) thay vì ngắt toàn bộ quy trình. Điều này cho phép cơ chế tự động thử lại hoặc bỏ qua tệp lỗi để đảm bảo tính ổn định của toàn hệ thống.
+\end{enumerate}
+
+\subsection{Xây dựng đồ thị tri thức và kho lưu trữ Hybrid}
+\label{subsec:xaydungdothi}
+
+Tại bước xử lý trung tâm, tài liệu sau khi phân đoạn (chunking) sẽ trải qua quy trình trích xuất thông tin hai bước sử dụng LLM:
+
+\begin{enumerate}
+    \item \textbf{Trích xuất thực thể (NER):} Nhận diện các đối tượng đặc thù trong miền dữ liệu đại học.
+    \item \textbf{Trích xuất quan hệ (Relation Extraction):} Xác định mối liên kết ngữ nghĩa giữa các thực thể.
+\end{enumerate}
+
+Hệ thống áp dụng mô hình \textbf{Hybrid Storage} để tối ưu hóa việc lưu trữ:
+
+\begin{itemize}
+    \item \textbf{Neo4j/NetworkX:} Lưu trữ đồ thị tri thức, biểu diễn các quan hệ cấu trúc như prerequisites (tiên quyết), belongs\_to (thuộc về).
+    \item \textbf{Qdrant:} Lưu trữ vector embeddings cho các đoạn văn bản và thực thể.
+    \item \textbf{PostgreSQL:} Lưu trữ metadata thời gian chuẩn hóa, đảm bảo khả năng lọc chính xác (Exact Filtering) mà các cơ sở dữ liệu vector thường gặp hạn chế.
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{images/img/lightrag_architecture.png}
+    \caption{Quy trình xây dựng đồ thị tri thức và các kho lưu trữ phục vụ truy xuất}
+    \label{fig:kgconstruction}
+\end{figure}
+
+Hệ thống lược đồ được định nghĩa bao gồm:
+
+\textbf{Thực thể (Nodes):}
+\begin{itemize}
+    \item \textit{Academic:} Course, Program, Department, Faculty.
+    \item \textit{Administrative:} Regulation, Procedure, Form.
+    \item \textit{Financial:} Scholarship, Tuition, Fee.
+    \item \textit{Personnel:} Lecturer, Staff, Advisor.
+    \item \textit{Temporal:} AcademicYear, Semester, Cohort.
+\end{itemize}
+
+\textbf{Quan hệ (Edges):} Tiêu biểu như issued\_by (ban hành bởi), applies\_to (áp dụng cho khóa), và đặc biệt là các quan hệ kiểm soát phiên bản văn bản như amends (sửa đổi), supersedes (thay thế).
+
+\subsection{Metadata RAG Subgraph - Trích xuất metadata thời gian thông minh}
+\label{subsec:metadataragsubgraph}
+
+Thay vì sử dụng các phương pháp trích xuất truyền thống (Regex cứng nhắc hay LLM Prompting đơn lẻ) vốn dễ gặp lỗi ảo giác với văn bản pháp quy phức tạp, hệ thống UITGraph áp dụng kiến trúc \textbf{Metadata RAG Subgraph} -- một quy trình RAG chuyên biệt (mini-RAG workflow) coi việc xác định siêu dữ liệu thời gian là một bài toán Hỏi-Đáp (Question Answering) ngược vào chính tài liệu đó.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{images/img/metadata_rag_subgraph.png}
+    \caption{Kiến trúc Metadata RAG}
+    \label{fig:metadatarag}
+\end{figure}
+
+\subsubsection{Quy trình xử lý 6 bước}
+
+\textbf{Bước 1 - Phân mảnh ngữ cảnh lớn (Chunking):}
+
+Tài liệu được chia thành các đoạn lớn (1024 tokens với 200 overlap) để giữ trọn vẹn ngữ cảnh các điều khoản quy định. Khác với chunking thông thường (512 tokens), chiến lược này đảm bảo các thông tin metadata không bị cắt ngang.
+
+\textbf{Bước 2 - Lập chỉ mục tạm thời (In-Memory Indexing):}
+
+Khởi tạo ChromaDB vector store tạm thời chỉ tồn tại trong quá trình xử lý tài liệu đó. Sử dụng Vietnamese\_Embedding\_v2 (1024-dim) để tối ưu cho tiếng Việt.
+
+\textbf{Bước 3 - Truy vấn Metadata (Two-Stage Retrieval):}
+
+\textit{Giai đoạn 1 (Bi-Encoder):}
+Sử dụng Vietnamese\_Embedding\_v2 để quét nhanh top-50 đoạn văn bản liên quan. Queries: ``Ngày hiệu lực của văn bản này?'', ``Văn bản áp dụng cho khóa nào?'', ``Số hiệu văn bản?''
+
+\textit{Giai đoạn 2 (Cross-Encoder):}
+Sử dụng ViRanker \cite{dang2025viranker} (namdp-ptit/ViRanker) để xếp hạng lại. Chọn ra top-5 đoạn chính xác nhất dựa trên semantic similarity score.
+
+\textbf{Bước 4 - Tính điểm tin cậy (Confidence Scoring):}
+
+\begin{equation}
+confidence = 0.4 \times completeness\_score + 0.4 \times llm\_confidence + 0.2 \times chunk\_quality
+\end{equation}
+
+Trong đó:
+\begin{itemize}
+    \item $completeness\_score$: Số trường metadata được trích xuất thành công / Tổng số trường
+    \item $llm\_confidence$: Điểm tin cậy từ LLM extraction
+    \item $chunk\_quality$: Điểm relevance trung bình từ Cross-Encoder
+\end{itemize}
+
+Phân loại confidence:
+\begin{itemize}
+    \item 0.9-1.0 (Excellent): Sử dụng trực tiếp kết quả RAG (hệ thống đạt 0.92)
+    \item 0.7-0.9 (Good): Sử dụng với cảnh báo
+    \item 0.5-0.7 (Fair): Kết hợp với Regex validation
+    \item $< 0.5$ (Low): Fallback hoàn toàn sang Regex
+\end{itemize}
+
+\textbf{Bước 5 - Kiểm tra và Định dạng (Pydantic Validation):}
+\begin{itemize}
+    \item Chuẩn hóa định dạng ngày tháng (YYYY-MM-DD)
+    \item Chuẩn hóa số hiệu văn bản (e.g., ``803/QĐ-ĐHCNTT'')
+    \item Validate cohort\_years là danh sách số nguyên
+\end{itemize}
+
+\textbf{Bước 6 - Dọn dẹp (Cleanup):}
+\begin{itemize}
+    \item Xóa ChromaDB collection tạm thời để giải phóng tài nguyên
+    \item Đảm bảo không memory leak trong quá trình batch processing
+\end{itemize}
+
+\subsubsection{So sánh hiệu quả}
+
+\begin{table}[H]
+\centering
+\caption{So sánh hiệu quả các phương pháp trích xuất metadata}
+\label{tab:metadatacomparison}
+\begin{tabular}{|l|c|c|c|c|}
+\hline
+\textbf{Phương pháp} & \textbf{Confidence} & \textbf{Tốc độ} & \textbf{Accuracy} & \textbf{Chi phí LLM} \\
+\hline
+Metadata RAG Subgraph & 0.92 & 2-3s & 92\% & Trung bình \\
+\hline
+Regex-only (Fallback) & 0.5-0.6 & 0.2s & 50-60\% & Không \\
+\hline
+LLM Prompting đơn lẻ & 0.6-0.7 & 1.5s & 60-70\% & Cao \\
+\hline
+\end{tabular}
+\end{table}
+
+\textbf{Kết luận:}
+\begin{itemize}
+    \item Metadata RAG Subgraph cải thiện 83\% so với Regex-only (+0.42 absolute, từ 0.5 lên 0.92)
+    \item Đảm bảo khả năng xử lý các quan hệ thời gian ẩn (e.g., ``có hiệu lực sau 45 ngày kể từ ngày ký'')
+    \item Fallback mechanism đảm bảo hệ thống luôn trả về kết quả
+\end{itemize}
+
+\subsection{Cơ chế đồng bộ dữ liệu và định danh (Data Synchronization)}
+\label{subsec:datasync}
+
+Trong kiến trúc tích hợp với LightRAG, quá trình nạp và xử lý tài liệu diễn ra theo cơ chế bất đồng bộ (asynchronous processing). Khi nội dung được gửi đi, hệ thống chỉ nhận lại ngay lập tức một mã theo dõi (\texttt{track\_id}) thay vì định danh tài liệu (\texttt{doc\_id}) chính thức.
+
+Để giải quyết vấn đề độ trễ đồng bộ (sync latency) thường gặp ở cơ chế kiểm tra lặp, hệ thống áp dụng quy trình tra cứu ngược. Quy trình thực hiện như sau:
+
+\begin{enumerate}
+    \item Hệ thống nhận \texttt{track\_id} ngay khi gửi yêu cầu lập chỉ mục.
+    \item Thay vì chờ đợi phản hồi từ API, hệ thống thực hiện truy vấn trực tiếp vào kho metadata PostgreSQL nội bộ của LightRAG.
+    \item Thực hiện ánh xạ \texttt{track\_id} sang \texttt{doc\_id} thực tế ngay khi bản ghi được khởi tạo.
+    \item Cập nhật metadata thời gian (temporal metadata) vào đúng bản ghi tài liệu thông qua \texttt{doc\_id} vừa tìm được.
+\end{enumerate}
+
+Giải pháp kỹ thuật này giúp loại bỏ hoàn toàn thời gian chờ chết (dead time) của cơ chế Polling, giảm thiểu tải cho API và ngăn chặn hiệu quả các lỗi timeout (quá thời gian chờ) khi thực hiện lập chỉ mục theo lô lớn (batch indexing).
+
+\section{Pha truy vấn trực tuyến (Online Retrieval \& Generation)}
+\label{sec:onlineretrieval}
+
+Pha truy vấn đóng vai trò là động cơ thực thi thời gian thực, chịu trách nhiệm tiếp nhận câu hỏi tự nhiên từ người dùng và sinh ra câu trả lời chính xác dựa trên bằng chứng.
+
+Kiến trúc xử lý được tổ chức theo mô hình \textbf{Multi-Agent System} \cite{langgraph_multiagent}, bao gồm ba tác tử chuyên biệt:
+
+\begin{enumerate}
+    \item \textbf{Agent 1 (Query Understanding):} Hiểu ý định và định tuyến.
+    \item \textbf{Agent 2 (Quality Assessment):} Đánh giá độ tin cậy của dữ liệu.
+    \item \textbf{Agent 3 (Response Generation):} Tổng hợp và sinh câu trả lời.
+\end{enumerate}
+
+Quy trình này không chạy tuyến tính mà bao gồm các checkpoints để quyết định luồng đi (fallback hoặc tiếp tục), đảm bảo tính an toàn của câu trả lời.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{images/img/query_pipeline.png}
+    \caption{Kiến trúc ba tác tử trong pha truy vấn của UITGraph}
+    \label{fig:multiagent}
+\end{figure}
+
+\subsection{Hiểu truy vấn và cơ chế định tuyến ngữ nghĩa}
+\label{subsec:queryunderstanding}
+
+Hệ thống quản lý quy trình truy vấn thông qua một \textbf{Query Graph} có trạng thái (stateful), duy trì ngữ cảnh xuyên suốt từ lúc nhận câu hỏi đến khi sinh câu trả lời.
+
+\subsubsection{Quản lý trạng thái}
+
+Cấu trúc trạng thái lưu trữ các nhóm thông tin:
+\begin{itemize}
+    \item \textbf{Đầu vào:} Câu hỏi tự nhiên của người dùng.
+    \item \textbf{Phân tích (Agent 1):} Ý định (Intention), thực thể (Entities), độ tin cậy (Confidence).
+    \item \textbf{Truy xuất:} Danh sách ứng viên (chunks) và quan hệ đồ thị.
+    \item \textbf{Đánh giá:} Điểm chất lượng, mức độ bao phủ thông tin.
+\end{itemize}
+
+\subsubsection{Cơ chế định tuyến}
+
+Workflow áp dụng cơ chế rẽ nhánh có điều kiện tại hai điểm kiểm soát:
+
+\begin{enumerate}
+    \item \textbf{Sau phân tích ý định:} Nếu độ tin cậy của mô hình hiểu ngôn ngữ $Confidence < 0.5$ hoặc phát hiện thiếu thông tin ngữ cảnh, hệ thống chuyển sang trạng thái ``Hỏi để làm rõ'' (Clarification) thay vì truy xuất mù quáng.
+    
+    \item \textbf{Sau đánh giá chất lượng:} Nếu dữ liệu truy xuất không đạt ngưỡng chất lượng ($Quality < 0.4$), hệ thống kích hoạt cơ chế Fallback (Trả lời an toàn) để tránh hiện tượng ảo giác (hallucination).
+\end{enumerate}
+
+\subsubsection{Tác tử hiểu truy vấn (Agent 1)}
+
+Agent 1 đóng vai trò bộ lọc đầu vào, sử dụng LLM để trích xuất cấu trúc dữ liệu gồm: Ý định truy vấn, Danh sách thực thể chính, và câu hỏi làm rõ (nếu cần thiết).
+
+\subsection{Chiến lược Truy xuất kép và Xếp hạng lại}
+\label{subsec:dualretrieval}
+
+Sau khi xác định ý định, hệ thống thực hiện chiến lược \textbf{Truy xuất kép (Dual Retrieval)} trên nền tảng LightRAG \cite{guo2024lightrag}:
+
+\begin{itemize}
+    \item Kết hợp tìm kiếm chi tiết (Low-level) dựa trên thực thể/đoạn văn.
+    \item Kết hợp tìm kiếm tổng quát (High-level) dựa trên tóm tắt cộng đồng.
+\end{itemize}
+
+Tập ứng viên thu được (Top-K = 60) được đưa qua mô hình ViRanker \cite{dang2025viranker} để tính điểm tương đồng ngữ nghĩa ($S_{semantic}$), tạo tiền đề cho thuật toán xếp hạng đa nhân tố.
+
+\subsection{Thuật toán xếp hạng đa nhân tố (Temporal \& Cohort Scoring)}
+\label{subsec:temporalscoring}
+
+Đây là thành phần cốt lõi của UITGraph, đảm bảo kết quả trả về không chỉ đúng nội dung mà còn đúng thời điểm và đối tượng áp dụng.
+
+\subsubsection{Điểm số thời gian cơ sở (Temporal Base Score)}
+
+Hệ thống định nghĩa hàm tính điểm $S_{base}(d)$ dựa trên vòng đời và trạng thái sửa đổi của tài liệu $d$:
+
+\begin{equation}
+S_{base}(d) = \begin{cases}
+0.0 & \text{nếu } d \text{ là tài liệu lưu trữ} \\
+0.1 & \text{nếu } d \text{ hết hạn } > 365 \text{ ngày} \\
+0.5 - \frac{t_{expired}}{365} \times 0.4 & \text{nếu } 0 < t_{expired} \leq 365 \\
+0.3 & \text{nếu } d \text{ bị sửa đổi} \\
+f_{recency}(t_{age}) & \text{trường hợp khác}
+\end{cases}
+\end{equation}
+
+Trong đó, hàm suy giảm theo độ mới $f_{recency}$ dựa trên tuổi đời tài liệu $t_{age}$ (số ngày từ khi ban hành):
+
+\begin{equation}
+f_{recency}(t_{age}) = \begin{cases}
+1.0 & \text{nếu } t_{age} \leq 30 \\
+0.9 - \frac{t_{age} - 30}{365} \times 0.2 & \text{nếu } 30 < t_{age} \leq 365 \\
+\max\left(0.5, 0.7 - \frac{t_{age} - 365}{365} \times 0.2\right) & \text{nếu } t_{age} > 365
+\end{cases}
+\end{equation}
+
+\subsubsection{Hệ số phạt rủi ro (Risk Penalty)}
+
+Hệ số phạt $P(d)$ được áp dụng để giảm thiểu rủi ro sử dụng thông tin lỗi thời:
+
+\begin{itemize}
+    \item $P(d) = 0.5$: Tài liệu đã hết hạn.
+    \item $P(d) = 0.8$: Tài liệu sắp hết hạn (trong vòng 30 ngày).
+    \item Điểm thời gian thực tế: $S_{temporal}(d) = S_{base}(d) \times P(d)$.
+\end{itemize}
+
+\subsubsection{Hệ số khuếch đại theo khóa sinh viên (Cohort Boost)}
+
+Nếu truy vấn chứa thông tin khóa (ví dụ: ``K2024''), hệ số $C(d)$ được áp dụng:
+
+\begin{itemize}
+    \item $C(d) = 1.5$: Khớp chính xác khóa áp dụng.
+    \item $C(d) = 1.2$: Khớp gần ($\pm 3$ năm).
+    \item $C(d) = 1.0$: Không có thông tin khóa.
+\end{itemize}
+
+\subsubsection{Công thức xếp hạng tổng hợp}
+
+Điểm cuối cùng của tài liệu là tổ hợp tuyến tính giữa ngữ nghĩa và thời gian, được khuếch đại bởi hệ số khóa:
+
+\begin{equation}
+Score_{final}(d) = \left[(1-w) \cdot S_{semantic}(d) + w \cdot S_{temporal}(d)\right] \times C(d)
+\end{equation}
+
+(Với $w = 0.3$ là trọng số mặc định ưu tiên ngữ nghĩa)
+
+\subsection{Kiểm định chất lượng và Sinh câu trả lời}
+\label{subsec:responsegeneration}
+
+Quy trình cuối cùng được thực hiện bởi hai tác tử chuyên biệt để đảm bảo độ tin cậy:
+
+\begin{enumerate}
+    \item \textbf{Agent 2 (Đánh giá):} Kiểm tra Top-10 tài liệu sau xếp hạng về độ bao phủ thông tin. Nếu dữ liệu không đủ để trả lời câu hỏi, Agent kích hoạt cờ fallback.
+    
+    \item \textbf{Agent 3 (Sinh đáp án):} Tổng hợp câu trả lời từ các bằng chứng đã chọn. Đặc biệt, Agent 3 có khả năng:
+    \begin{itemize}
+        \item Tự động gắn liên kết tham chiếu đến văn bản gốc.
+        \item Chèn cảnh báo hiệu lực (Warning Note) nếu câu trả lời trích dẫn từ các văn bản sắp hết hạn hoặc đã có sửa đổi, giúp người dùng nhận thức được rủi ro áp dụng.
+    \end{itemize}
+\end{enumerate}
+
+\section{Triển khai hệ thống và cấu hình vận hành}
+\label{sec:trienkhai}
+
+Hệ thống UITGraph được đóng gói và triển khai theo kiến trúc vi dịch vụ (Microservices Architecture) trên nền tảng container hóa Docker. Việc điều phối các dịch vụ được thực hiện thông qua Docker Compose, đảm bảo tính nhất quán của môi trường chạy (runtime environment), khả năng mở rộng (scalability) và dễ dàng tái lập (reproducibility) trên các hạ tầng khác nhau.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{images/img/deployment_architecture.png}
+    \caption{Kiến trúc triển khai hệ thống theo Docker Compose}
+    \label{fig:dockercompose}
+\end{figure}
+
+\subsection{Phân nhóm dịch vụ (Service Orchestration)}
+\label{subsec:serviceorchestration}
+
+Dựa trên sơ đồ kiến trúc, hệ thống được chia thành ba cụm dịch vụ logic, hoạt động độc lập nhưng liên kết chặt chẽ qua mạng nội bộ Docker (Bridge Network):
+
+\begin{enumerate}
+    \item \textbf{Application Services (Tầng ứng dụng):}
+    \begin{itemize}
+        \item \textit{Streamlit GUI:} Cổng giao tiếp người dùng, cung cấp giao diện trực quan cho việc upload tài liệu và chat.
+        \item \textit{LangGraph Server:} Đóng vai trò ``nhạc trưởng'', điều phối luồng xử lý trạng thái giữa các tác tử.
+    \end{itemize}
+    
+    \item \textbf{Knowledge Base Services (Tầng tri thức \& lưu trữ):}
+    \begin{itemize}
+        \item \textit{LightRAG API:} Cung cấp các endpoint truy xuất dữ liệu RAG.
+        \item \textit{Qdrant:} Cơ sở dữ liệu Vector lưu trữ embeddings.
+        \item \textit{PostgreSQL:} Lưu trữ metadata quan hệ và dữ liệu thời gian.
+    \end{itemize}
+    
+    \item \textbf{Crawler Service (Tầng thu thập):}
+    \begin{itemize}
+        \item \textit{Firecrawl:} Dịch vụ thu thập dữ liệu web tự động.
+        \item \textit{Redis:} Hàng đợi thông điệp và cache hỗ trợ cho Crawler.
+    \end{itemize}
+\end{enumerate}
+
+\subsection{Thông số cấu hình và Bảo toàn dữ liệu}
+\label{subsec:cauhinh}
+
+Để đảm bảo an toàn dữ liệu và tách biệt môi trường, hệ thống sử dụng cơ chế Shared Volumes. Các cấu hình cổng và đường dẫn lưu trữ được quy hoạch chi tiết như sau:
+
+\begin{table}[H]
+\centering
+\caption{Đặc tả cấu hình mạng và lưu trữ của hệ thống}
+\label{tab:cauhinhmang}
+\begin{tabular}{|l|l|c|l|}
+\hline
+\textbf{Nhóm} & \textbf{Tên Service} & \textbf{Port} & \textbf{Vai trò chính} \\
+\hline
+Application & Streamlit GUI & 8501:8501 & Giao diện người dùng cuối \\
+ & LangGraph API & 2024:80 & API điều phối luồng xử lý \\
+\hline
+Knowledge & LightRAG API & 8020:8020 & Backend xử lý truy vấn RAG \\
+ & Qdrant & 6333:6333 & Vector Database Interface \\
+ & PostgreSQL & 5433:5432 & Relational Database (Metadata) \\
+\hline
+Crawler & Firecrawl & 3002:3002 & Web Crawler Service \\
+ & Redis & 6379:6379 & Cache \& Message Queue \\
+\hline
+\end{tabular}
+\end{table}
+
+\textbf{Cấu hình volumes mapping:}
+\begin{itemize}
+    \item \texttt{./data/inputs}: Chứa tài liệu thô đầu vào (PDF, Markdown).
+    \item \texttt{./data/rag\_storage}: Lưu trữ chỉ mục cục bộ của LightRAG (Entity/Relation store).
+    \item \texttt{./data/pg\_data}: Bảo toàn dữ liệu của PostgreSQL (tránh mất dữ liệu khi restart container).
+    \item \texttt{./data/DeepSeek-OCR}: Lưu trữ mô hình OCR và cache kết quả xử lý hình ảnh.
+\end{itemize}
+
+\subsection{Embedding Model và Reranker}
+\label{subsec:embeddingmodel}
+
+\textbf{Embedding Model:}
+\begin{itemize}
+    \item Model: AlTeamVN/Vietnamese\_Embedding\_v2
+    \item Dimension: 1024-dim
+    \item Tối ưu: Embedding vector được tinh chỉnh đặc biệt cho văn bản tiếng Việt chuyên ngành
+    \item Use case: Sử dụng cho cả indexing (Metadata RAG) và query retrieval
+\end{itemize}
+
+\textbf{Reranker:}
+\begin{itemize}
+    \item Model: namdp-ptit/ViRanker
+    \item Architecture: Cross-encoder dựa trên PhoBERT
+    \item Performance: 85\%+ accuracy trên văn bản giáo dục tiếng Việt
+    \item Use case: Two-stage retrieval trong Metadata RAG Subgraph
+\end{itemize}
+
+\section{Thiết kế thực nghiệm và Phương pháp đánh giá}
+\label{sec:thucnghiem}
+
+Để kiểm chứng tính hiệu quả của kiến trúc UITGraph, quá trình đánh giá được thiết kế tập trung vào bốn thành phần cốt lõi:
+
+\begin{enumerate}
+    \item \textbf{Khả năng nhận thức thời gian:} Độ chính xác trong việc trích xuất metadata và quan hệ sửa đổi.
+    \item \textbf{Hiệu năng truy xuất:} Chất lượng của thuật toán xếp hạng đa nhân tố (Ngữ nghĩa -- Thời gian -- Khóa sinh viên).
+    \item \textbf{Độ an toàn của hệ thống:} Độ tin cậy của cơ chế định tuyến và khả năng kích hoạt Fallback khi thiếu thông tin.
+    \item \textbf{Hiệu suất vận hành:} Tốc độ lập chỉ mục và độ trễ của cơ chế đồng bộ dữ liệu.
+\end{enumerate}
+
+\subsection{Bộ chỉ số đánh giá}
+\label{subsec:chisodanhgia}
+
+\subsubsection{Temporal Extraction}
+
+Đánh giá mức độ khớp giữa dữ liệu trích xuất và nhãn thủ công trên các trường: \texttt{valid\_from}, \texttt{valid\_until}, \texttt{cohort\_scope}.
+
+\begin{itemize}
+    \item \textbf{Precision (Độ chính xác):} Tỷ lệ thông tin thời gian trích xuất đúng trên tổng số thông tin trích xuất.
+    \item \textbf{Accuracy (Độ đúng):} Tỷ lệ tài liệu được xác định đúng hoàn toàn trạng thái sửa đổi (\texttt{amends}/\texttt{amended\_by}).
+\end{itemize}
+
+\subsubsection{Query Pipeline}
+
+Sử dụng các chỉ số phổ biến trong Information Retrieval:
+
+\begin{itemize}
+    \item \textbf{Hit Rate @ K:} Tỷ lệ câu hỏi có ít nhất một văn bản liên quan xuất hiện trong Top-K kết quả.
+    \item \textbf{Temporal Accuracy @ K:} Chỉ số tùy biến, đo lường tỷ lệ các văn bản trong Top-K có tính hiệu lực (còn hạn/đúng khóa) so với yêu cầu của câu hỏi.
+\end{itemize}
+
+\subsubsection{Routing \& Safety}
+
+Sử dụng ma trận nhầm lẫn để đánh giá quyết định của Agent:
+
+\begin{itemize}
+    \item \textbf{True Positive:} Hệ thống trả lời khi có đủ thông tin.
+    \item \textbf{True Negative:} Hệ thống từ chối (Fallback/Clarify) khi không đủ thông tin hoặc câu hỏi không rõ ràng.
+    \item \textbf{False Positive (Nguy hiểm):} Hệ thống cố trả lời (Hallucination) khi dữ liệu thiếu hoặc sai.
+\end{itemize}
+
+\subsubsection{System Performance}
+
+\begin{itemize}
+    \item \textbf{Indexing Latency:} Thời gian trung bình để xử lý một lô tài liệu (Batch processing time).
+    \item \textbf{Sync Lag:} Độ trễ giữa lúc nhận \texttt{track\_id} và lúc hoàn tất ghi metadata (\texttt{doc\_id} mapping).
+\end{itemize}
+
+\subsection{Quy trình thực nghiệm}
+\label{subsec:quytrinhthucnghiem}
+
+Quá trình đánh giá được thực hiện theo kịch bản bốn giai đoạn:
+
+\textbf{Giai đoạn 1: Chuẩn bị dữ liệu}
+\begin{itemize}
+    \item Xây dựng bộ dữ liệu kiểm thử (Golden Dataset) bao gồm các cặp câu hỏi-câu trả lời (QA pairs) và các tài liệu quy chế có tính chất phức tạp về thời gian (sửa đổi, thay thế).
+    \item Gán nhãn thủ công (Manual labeling) cho các ý định truy vấn và trạng thái fallback để làm cơ sở tham chiếu (Ground Truth).
+\end{itemize}
+
+\textbf{Giai đoạn 2: Đánh giá thành phần}
+\begin{itemize}
+    \item Thực thi pipeline lập chỉ mục trên tập dữ liệu mẫu.
+    \item Thống kê tỷ lệ lỗi của module DeepSeek-OCR trên các tài liệu PDF bảng biểu.
+    \item Đo lường độ chính xác của Temporal Extraction Agent khi sử dụng chiến lược Regex đơn thuần so với chiến lược kết hợp LLM.
+\end{itemize}
+
+\textbf{Giai đoạn 3: Đánh giá End-to-End và cơ chế an toàn}
+\begin{itemize}
+    \item Chạy tập truy vấn kiểm thử qua toàn bộ hệ thống.
+    \item Phân tích ma trận nhầm lẫn để đánh giá ngưỡng tin cậy (Confidence Threshold). Mục tiêu là tối thiểu hóa tỷ lệ False Positive (trả lời sai/bịa đặt), chấp nhận tăng tỷ lệ Fallback để đảm bảo tính chính xác học thuật.
+\end{itemize}
+
+\textbf{Giai đoạn 4: Nghiên cứu so sánh}
+
+Để chứng minh hiệu quả của thuật toán xếp hạng đề xuất, thực hiện so sánh kết quả Top-1 giữa hai cấu hình:
+
+\begin{enumerate}
+    \item \textbf{Baseline:} Chỉ sử dụng tìm kiếm ngữ nghĩa (Semantic Search thuần túy).
+    \item \textbf{UITGraph:} Sử dụng Semantic Search kết hợp Temporal Scoring và Cohort Boost.
+\end{enumerate}
+
+Mục tiêu: Phân tích các trường hợp sai (Error Analysis) của Baseline mà UITGraph khắc phục được, đặc biệt là các lỗi liên quan đến văn bản cũ/hết hạn.

@@ -1,0 +1,42 @@
+\chapter{Mục tiêu, đối tượng và phạm vi nghiên cứu}
+\label{chap:muctieu}
+
+\section{Mục tiêu nghiên cứu}
+\label{sec:muctieunghiencuu}
+
+Mục tiêu của đề tài là xây dựng khung giải pháp \textbf{Temporal-Aware Graph-RAG (UITGraph)} cho bài toán hỏi - đáp trên tài liệu UIT, nhằm bảo đảm truy xuất đúng nguồn và đúng hiệu lực văn bản tại thời điểm truy vấn.
+
+Các mục tiêu kỹ thuật của hệ thống UITGraph gồm:
+
+\begin{itemize}
+    \item Biểu diễn tri thức dạng đồ thị và truy xuất theo quan hệ để hỗ trợ truy vấn toàn cục và suy luận đa bước.
+    
+    \item Điều phối quy trình hỏi - đáp theo mô hình tác tử có trạng thái, rẽ nhánh theo ngưỡng độ tin cậy và chất lượng ngữ cảnh.
+    
+    \item Quản lý tài liệu theo thời gian ở mức chi tiết: trích xuất khoảng hiệu lực, nhận diện quan hệ sửa đổi/bổ sung và hỗ trợ lọc theo khóa sinh viên (cohort).
+    
+    \item Xây dựng và đánh giá thực nghiệm hệ thống UITGraph về độ chính xác (Accuracy), khả năng truy hồi (Recall) và thời gian phản hồi (Latency) so với các phương pháp RAG cơ bản.
+\end{itemize}
+
+\section{Đối tượng nghiên cứu}
+\label{sec:doituongnghiencuu}
+
+Đối tượng nghiên cứu là quy trình truy xuất - xếp hạng - tổng hợp tri thức trên tập tài liệu UIT, trong đó trọng tâm gồm:
+
+\begin{enumerate}
+    \item[(i)] Cơ chế xây dựng và khai thác cấu trúc đồ thị tri thức (LightRAG),
+    \item[(ii)] Cơ chế điều phối tác tử (LangGraph) cho pipeline nhiều bước, và
+    \item[(iii)] Cơ chế mô hình hóa - khai thác metadata thời gian để đảm bảo tính đúng đắn theo hiệu lực văn bản.
+\end{enumerate}
+
+\section{Phạm vi nghiên cứu}
+\label{sec:phamvinghiencuu}
+
+Phạm vi triển khai tập trung vào các nguồn tài liệu chính thống phục vụ tra cứu học vụ/hành chính (website, văn bản PDF/HTML, thông báo), được thu thập bằng crawler và/hoặc tải lên thủ công. Hệ thống hướng đến trả lời tiếng Việt, có trích dẫn nguồn và cảnh báo khi văn bản liên quan đã hết hiệu lực hoặc đã bị sửa đổi/bổ sung.
+
+Các nội dung ngoài phạm vi gồm:
+\begin{enumerate}
+    \item[(i)] Tri thức ngoài tập tài liệu đã thu thập;
+    \item[(ii)] Xử lý thông tin cá nhân nhạy cảm;
+    \item[(iii)] Cập nhật thời gian thực từ các nguồn không kiểm soát.
+\end{enumerate}
